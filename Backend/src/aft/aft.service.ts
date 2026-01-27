@@ -112,7 +112,7 @@ export class AftService {
 
     aft.historial = await this.historialRepo.find({
       where: { aftId: id },
-      order: { fecha: 'DESC' },
+      order: { id: 'DESC' },
     });
 
     return aft;

@@ -79,7 +79,7 @@ export default function DashboardPage() {
   const modules: ModuleItem[] = [
     {
       title: "Trabajadores",
-      description: "Gestión de personal, áreas y cargos",
+      description: "Gestión del personal",
       icon: Users,
       path: "/dashboard/trabajadores",
       color: "blue",

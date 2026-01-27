@@ -86,10 +86,7 @@ export class TrabajadorService {
     return this.repo.find({
       where,
       relations: ['cargo', 'municipio', 'provincia'],
-      order: {
-        nombre: 'ASC',
-        apellidos: 'ASC',
-      },
+      order: {id: 'DESC' },
     });
   }
 
@@ -245,6 +242,9 @@ export class TrabajadorService {
     if (filters.orderBy) {
       const dir = filters.orderDir === 'DESC' ? 'DESC' : 'ASC';
       query.orderBy(`t.${filters.orderBy}`, dir);
+    }
+    else {
+    query.orderBy('t.id', 'DESC');
     }
 
     if (filters.limit) query.limit(filters.limit);

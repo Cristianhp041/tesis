@@ -286,27 +286,40 @@ export class TrabajadorService {
     };
 
     try {
-      const xlsx = await import('xlsx');
-      const workbook = xlsx.read(buffer, { type: 'buffer', raw: true, codepage: 65001 });
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer as any);
       
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        throw new BadRequestException('El archivo no contiene hojas de cálculo');
+      }
       
-      const data: Record<string, unknown>[] = xlsx.utils.sheet_to_json(worksheet, {
-        raw: false,
-        defval: '',
-        blankrows: false
+      const data: Record<string, unknown>[] = [];
+      const headers: string[] = [];
+      
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => {
+            headers.push(cell.value?.toString() || '');
+          });
+        } else {
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            if (header) {
+              rowData[header] = cell.value;
+            }
+          });
+          
+          if (Object.values(rowData).some(v => v != null && String(v).trim() !== '')) {
+            data.push(rowData);
+          }
+        }
       });
 
       if (data.length === 0) {
         throw new BadRequestException('El archivo está vacío');
-      }
-
-      const primeraClave = Object.keys(data[0])[0];
-      if (primeraClave && primeraClave.includes(',')) {
-        throw new BadRequestException(
-          'Error al leer el archivo. Por favor, usa un archivo Excel (.xlsx)'
-        );
       }
 
       for (let i = 0; i < data.length; i++) {

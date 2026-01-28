@@ -17,7 +17,7 @@ import { Subclasificacion } from '../subclasificacion/entities/subclasificacion.
 import { SubclasificacionService } from '../subclasificacion/subclasificacion.service';
 import { AftFilterInput } from './dto/aft-filter.input';
 import { ImportAftRowDto, ImportResultDto } from './dto/import-aft.dto';
-import * as xlsx from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class AftService {
@@ -371,30 +371,39 @@ async importarAfts(buffer: Buffer): Promise<ImportResultDto> {
   };
 
   try {
-    const workbook = xlsx.read(buffer, { 
-      type: 'buffer',
-      raw: true,
-      codepage: 65001
-    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
     
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException('El archivo no contiene hojas de cálculo');
+    }
     
-    const data: Record<string, unknown>[] = xlsx.utils.sheet_to_json(worksheet, {
-      raw: false,
-      defval: '',
-      blankrows: false
+    const data: Record<string, unknown>[] = [];
+    const headers: string[] = [];
+    
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) {
+        row.eachCell((cell) => {
+          headers.push(cell.value?.toString() || '');
+        });
+      } else {
+        const rowData: Record<string, unknown> = {};
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber - 1];
+          if (header) {
+            rowData[header] = cell.value;
+          }
+        });
+        
+        if (Object.values(rowData).some(v => v != null && String(v).trim() !== '')) {
+          data.push(rowData);
+        }
+      }
     });
 
     if (data.length === 0) {
       throw new BadRequestException('El archivo está vacío');
-    }
-
-    const primeraClave = Object.keys(data[0])[0];
-    if (primeraClave && primeraClave.includes(',')) {
-      throw new BadRequestException(
-        'Error al leer el archivo CSV. Por favor, usa un archivo Excel (.xlsx) o asegúrate de que el CSV esté correctamente formateado.'
-      );
     }
 
     const getFieldValue = (row: Record<string, unknown>, ...fieldNames: string[]): string => {

@@ -128,7 +128,7 @@ export default function TrabajadoresPage() {
             Trabajadores
           </h1>
           <p className="text-slate-500">
-            Gestión de personal, áreas y cargos
+            Gestión del personal
           </p>
         </div>
 

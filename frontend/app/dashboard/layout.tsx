@@ -127,7 +127,7 @@ export default function DashboardLayout({
     },
     {
       id: "aft",
-      label: "Activos Fijos",
+      label: "Activos Fijos Tangibles",
       icon: Package,
       href: "/dashboard/aft",
     },

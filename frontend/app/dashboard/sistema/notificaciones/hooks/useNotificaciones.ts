@@ -22,6 +22,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   } = options;
 
   const previousCountRef = useRef<number | null>(null);
+  const notificationPermissionRef = useRef<NotificationPermission | null>(null);
 
   const {
     data: notificationsData,
@@ -91,7 +92,45 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     }
   }, []);
 
-  // Detectar nuevas notificaciones y mostrar toast
+  const showBrowserNotification = useCallback((notification: NotificationData) => {
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted"
+    ) {
+      return;
+    }
+
+    try {
+      const browserNotification = new Notification(notification.title, {
+        body: notification.message,
+        icon: "/favicon.ico",
+        badge: "/favicon.ico",
+        tag: `notification-${notification.id}`,
+        requireInteraction: notification.type.includes("VENCIDO"),
+      });
+
+      browserNotification.onclick = () => {
+        window.focus();
+        browserNotification.close();
+      };
+    } catch (error) {
+      console.error("Error mostrando notificación del navegador:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          notificationPermissionRef.current = permission;
+        });
+      } else {
+        notificationPermissionRef.current = Notification.permission;
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const currentCount = countData?.unreadNotificationsCount ?? 0;
 
@@ -108,11 +147,12 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       if (newNotifications.length > 0) {
         const latestNotification = newNotifications[0];
         showToastNotification(latestNotification);
+        showBrowserNotification(latestNotification);
       }
     }
 
     previousCountRef.current = currentCount;
-  }, [countData?.unreadNotificationsCount, notificationsData, showToastNotification]);
+  }, [countData?.unreadNotificationsCount, notificationsData, showToastNotification, showBrowserNotification]);
 
   const markAsRead = async (id: number) => {
     try {

@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 import EditarPerfilModal from "./sistema/users/components/EditarPerfilModal";
-
+import NotificationBell from "./sistema/notificaciones/components/NotificacionBell";
 interface MeUser {
   email: string;
   role: "ADMIN" | "USER";
@@ -198,30 +198,37 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-slate-100">
 
       <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-blue-700 shadow-md px-6 py-3.5 z-40">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between w-full">
+  {/* Izquierda: Menú + Logo */}
+  <div className="flex items-center gap-4">
+    <button
+      onClick={() => setSidebarOpen(!sidebarOpen)}
+      className="p-2 rounded-lg text-white hover:bg-blue-700 transition"
+      title="Alternar menú"
+    >
+      <Menu size={22} />
+    </button>
 
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg text-white hover:bg-blue-700 transition"
-            title="Alternar menú"
-          >
-            <Menu size={22} />
-          </button>
+    <Link 
+      href="/dashboard" 
+      className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer"
+    >
+      <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        </svg>
+      </div>
+      <div className="text-white">
+        <h1 className="font-bold text-lg">Vertex</h1>
+      </div>
+    </Link>
+  </div>
 
-          <Link 
-            href="/dashboard" 
-            className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <div className="text-white">
-              <h1 className="font-bold text-lg">Vertex</h1>
-            </div>
-          </Link>
-        </div>
+  {/* Derecha: Notificaciones */}
+  <div className="flex items-center gap-4">
+    <NotificationBell />
+  </div>
+    </div>
       </header>
 
       {sidebarOpen && (

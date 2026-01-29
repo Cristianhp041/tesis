@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets, In } from 'typeorm';
-
 import { Aft } from './entities/aft.entity';
 import { AftHistorial } from './entities/aft-historial.entity';
 import { CreateAftDto } from './dto/create-aft.dto';

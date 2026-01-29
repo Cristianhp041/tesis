@@ -14,6 +14,7 @@ import { TrabajadorModule } from './trabajador/trabajador.module';
 import { AftModule } from './aft/aft.module';
 import { SubclasificacionModule } from './subclasificacion/subclasificacion.module';
 import { DocumentsModule } from './documentos/documento.module';
+import { NotificationModule } from './notificacion/notificacion.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DocumentsModule } from './documentos/documento.module';
     AftModule,
     SubclasificacionModule,
     DocumentsModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

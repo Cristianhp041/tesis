@@ -3,6 +3,7 @@
 import { X, Upload, FileSpreadsheet, Download, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from 'xlsx';
 
 interface ImportResult {
   exitosos: number;
@@ -25,66 +26,36 @@ export default function ImportarTrabajadorModal({ open, onClose, onSuccess }: Pr
   if (!open) return null;
 
   const descargarPlantilla = () => {
-    const datos = [
-      {
-        Nombre: "Juan",
-        Apellidos: "Pérez García",
-        Expediente: "EXP001",
-        Telefono: "55512345",
-        Cargo: "Director",
-        Provincia: "La Habana",
-        Municipio: "Plaza",
-        Estado: "Activo"
-      },
-      {
-        Nombre: "María",
-        Apellidos: "González López",
-        Expediente: "EXP002",
-        Telefono: "55567890",
-        Cargo: "Secretaria",
-        Provincia: "La Habana",
-        Municipio: "Centro Habana",
-        Estado: "Activo"
-      }
-    ];
+    try {
+      const data = [
+        ['Nombre', 'Apellidos', 'Expediente', 'Telefono', 'Cargo', 'Provincia', 'Municipio', 'Estado'],
+        ['Juan', 'Pérez García', 'EXP001', '55512345', 'Director', 'La Habana', 'Plaza', 'Activo'],
+        ['María', 'González López', 'EXP002', '55567890', 'Secretaria', 'La Habana', 'Centro Habana', 'Activo'],
+      ];
 
-    const headers = Object.keys(datos[0]);
-    
-    let xml = '<?xml version="1.0"?>\n';
-    xml += '<?mso-application progid="Excel.Sheet"?>\n';
-    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
-    xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
-    xml += ' <Worksheet ss:Name="Trabajadores">\n';
-    xml += '  <Table>\n';
-    
-    xml += '   <Row>\n';
-    headers.forEach(h => {
-      xml += `    <Cell><Data ss:Type="String">${h}</Data></Cell>\n`;
-    });
-    xml += '   </Row>\n';
-    
-    datos.forEach(row => {
-      xml += '   <Row>\n';
-      headers.forEach(h => {
-        xml += `    <Cell><Data ss:Type="String">${row[h as keyof typeof row]}</Data></Cell>\n`;
-      });
-      xml += '   </Row>\n';
-    });
-    
-    xml += '  </Table>\n';
-    xml += ' </Worksheet>\n';
-    xml += '</Workbook>';
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+      
+      worksheet['!cols'] = [
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 12 },
+      ];
 
-    const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'plantilla_trabajadores.xls';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Trabajadores');
 
-    toast.success('✓ Plantilla descargada');
+      XLSX.writeFile(workbook, 'plantilla_trabajadores.xlsx');
+
+      toast.success('✓ Plantilla descargada');
+    } catch (error) {
+      console.error('Error al generar plantilla:', error);
+      toast.error('✗ Error al generar plantilla');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

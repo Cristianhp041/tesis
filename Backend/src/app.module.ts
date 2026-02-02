@@ -1,4 +1,3 @@
-// backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
@@ -15,7 +14,7 @@ import { AftModule } from './aft/aft.module';
 import { SubclasificacionModule } from './subclasificacion/subclasificacion.module';
 import { DocumentsModule } from './documentos/documento.module';
 import { NotificationModule } from './notificacion/notificacion.module';
-
+import { ConteoAftModule } from './conteo/conteo.module';
 @Module({
   imports: [
     GraphQLModule.forRoot<ApolloDriverConfig>({
@@ -49,6 +48,7 @@ import { NotificationModule } from './notificacion/notificacion.module';
     SubclasificacionModule,
     DocumentsModule,
     NotificationModule,
+    ConteoAftModule,
   ],
 })
 export class AppModule {}

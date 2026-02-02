@@ -17,6 +17,7 @@ import { SubclasificacionService } from '../subclasificacion/subclasificacion.se
 import { AftFilterInput } from './dto/aft-filter.input';
 import { ImportAftRowDto, ImportResultDto } from './dto/import-aft.dto';
 import * as ExcelJS from 'exceljs';
+import { AsignacionMensualService } from '../conteo/services/asignacion-mensual.service';
 
 @Injectable()
 export class AftService {
@@ -35,6 +36,9 @@ export class AftService {
 
     @Inject(forwardRef(() => SubclasificacionService))
     private readonly subclasificacionService: SubclasificacionService,
+
+    @Inject(forwardRef(() => AsignacionMensualService))
+    private readonly asignacionMensualService: AsignacionMensualService,
   ) {}
 
   async create(data: CreateAftDto) {
@@ -174,7 +178,6 @@ export class AftService {
 
     if (typeof data.activo === 'boolean' && data.activo !== aft.activo) {
       if (!aft.activo && data.activo) {
-
         throw new BadRequestException({
           message: 'No se puede reactivar un AFT inactivo',
           error: 'AFT_NO_REACTIVABLE',
@@ -238,12 +241,18 @@ export class AftService {
     aft.activo = false;
     await this.repo.save(aft);
 
-    await this.registrarHistorial(id, 'AFT marcado como NO ACTIVO');
+    await this.registrarHistorial(id, 'AFT marcado como NO ACTIVO desde inventario');
+
+    try {
+      await this.asignacionMensualService.removerAftDeAsignaciones(id);
+    } catch (error) {
+      console.log('Error al remover AFT de asignaciones:', error.message);
+    }
 
     return this.findOne(id);
   }
 
-  private async registrarHistorial(
+  public async registrarHistorial(
     aftId: number,
     descripcion: string,
   ) {
@@ -314,6 +323,12 @@ export class AftService {
         aft.activo = false;
         await this.repo.save(aft);
         await this.registrarHistorial(aft.id, 'AFT marcado como NO ACTIVO (masivo)');
+      
+        try {
+          await this.asignacionMensualService.removerAftDeAsignaciones(aft.id);
+        } catch (error) {
+          console.log(`Error al remover AFT ${aft.id} de asignaciones:`, error.message);
+        }
       }
     }
 
@@ -361,176 +376,176 @@ export class AftService {
     return aftsMovidos;
   }
 
-async importarAfts(buffer: Buffer): Promise<ImportResultDto> {
-  const resultado: ImportResultDto = {
-    exitosos: 0,
-    duplicados: 0,
-    errores: 0,
-    mensajes: [],
-  };
-
-  try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as any);
-    
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) {
-      throw new BadRequestException('El archivo no contiene hojas de cálculo');
-    }
-    
-    const data: Record<string, unknown>[] = [];
-    const headers: string[] = [];
-    
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) {
-        row.eachCell((cell) => {
-          headers.push(cell.value?.toString() || '');
-        });
-      } else {
-        const rowData: Record<string, unknown> = {};
-        row.eachCell((cell, colNumber) => {
-          const header = headers[colNumber - 1];
-          if (header) {
-            rowData[header] = cell.value;
-          }
-        });
-        
-        if (Object.values(rowData).some(v => v != null && String(v).trim() !== '')) {
-          data.push(rowData);
-        }
-      }
-    });
-
-    if (data.length === 0) {
-      throw new BadRequestException('El archivo está vacío');
-    }
-
-    const getFieldValue = (row: Record<string, unknown>, ...fieldNames: string[]): string => {
-      for (const fieldName of fieldNames) {
-        if (row[fieldName] != null) {
-          return String(row[fieldName]).trim();
-        }
-        
-        const key = Object.keys(row).find(k => k.toLowerCase() === fieldName.toLowerCase());
-        if (key && row[key] != null) {
-          return String(row[key]).trim();
-        }
-      }
-      return '';
+  async importarAfts(buffer: Buffer): Promise<ImportResultDto> {
+    const resultado: ImportResultDto = {
+      exitosos: 0,
+      duplicados: 0,
+      errores: 0,
+      mensajes: [],
     };
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const fila = i + 2; 
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer as any);
+      
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        throw new BadRequestException('El archivo no contiene hojas de cálculo');
+      }
+      
+      const data: Record<string, unknown>[] = [];
+      const headers: string[] = [];
+      
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => {
+            headers.push(cell.value?.toString() || '');
+          });
+        } else {
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            if (header) {
+              rowData[header] = cell.value;
+            }
+          });
+          
+          if (Object.values(rowData).some(v => v != null && String(v).trim() !== '')) {
+            data.push(rowData);
+          }
+        }
+      });
 
-      try {
-        const rotulo = getFieldValue(row, 'Rotulo', 'Rótulo', 'ROTULO');
-        const nombre = getFieldValue(row, 'Nombre', 'NOMBRE', 'nombre');
-        const areaNombre = getFieldValue(row, 'Area', 'Área', 'AREA', 'area');
-        const subNombre = getFieldValue(row, 'Subclasificacion', 'Subclasificación', 'SUBCLASIFICACION', 'subclasificacion');
-        const estadoStr = getFieldValue(row, 'Estado', 'ESTADO', 'estado') || 'activo';
+      if (data.length === 0) {
+        throw new BadRequestException('El archivo está vacío');
+      }
 
-        const camposFaltantes: string[] = [];
-        if (!rotulo) camposFaltantes.push('Rotulo');
-        if (!nombre) camposFaltantes.push('Nombre');
-        if (!areaNombre) camposFaltantes.push('Area');
-        if (!subNombre) camposFaltantes.push('Subclasificacion');
+      const getFieldValue = (row: Record<string, unknown>, ...fieldNames: string[]): string => {
+        for (const fieldName of fieldNames) {
+          if (row[fieldName] != null) {
+            return String(row[fieldName]).trim();
+          }
+          
+          const key = Object.keys(row).find(k => k.toLowerCase() === fieldName.toLowerCase());
+          if (key && row[key] != null) {
+            return String(row[key]).trim();
+          }
+        }
+        return '';
+      };
 
-        if (camposFaltantes.length > 0) {
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const fila = i + 2; 
+
+        try {
+          const rotulo = getFieldValue(row, 'Rotulo', 'Rótulo', 'ROTULO');
+          const nombre = getFieldValue(row, 'Nombre', 'NOMBRE', 'nombre');
+          const areaNombre = getFieldValue(row, 'Area', 'Área', 'AREA', 'area');
+          const subNombre = getFieldValue(row, 'Subclasificacion', 'Subclasificación', 'SUBCLASIFICACION', 'subclasificacion');
+          const estadoStr = getFieldValue(row, 'Estado', 'ESTADO', 'estado') || 'activo';
+
+          const camposFaltantes: string[] = [];
+          if (!rotulo) camposFaltantes.push('Rotulo');
+          if (!nombre) camposFaltantes.push('Nombre');
+          if (!areaNombre) camposFaltantes.push('Area');
+          if (!subNombre) camposFaltantes.push('Subclasificacion');
+
+          if (camposFaltantes.length > 0) {
+            resultado.errores++;
+            resultado.mensajes.push(
+              `Fila ${fila}: Faltan campos obligatorios: ${camposFaltantes.join(', ')}`
+            );
+            continue;
+          }
+
+          const existe = await this.repo.findOne({
+            where: { rotulo },
+          });
+
+          if (existe) {
+            resultado.duplicados++;
+            resultado.mensajes.push(
+              `Fila ${fila}: Rótulo "${rotulo}" ya existe (omitido)`
+            );
+            continue;
+          }
+
+          const area = await this.areaRepo.findOne({
+            where: { nombre: areaNombre },
+          });
+
+          if (!area) {
+            resultado.errores++;
+            resultado.mensajes.push(
+              `Fila ${fila}: Área "${areaNombre}" no encontrada en el sistema`
+            );
+            continue;
+          }
+
+          const subclasificacion = await this.subRepo.findOne({
+            where: { nombre: subNombre },
+          });
+
+          if (!subclasificacion) {
+            resultado.errores++;
+            resultado.mensajes.push(
+              `Fila ${fila}: Subclasificación "${subNombre}" no encontrada en el sistema`
+            );
+            continue;
+          }
+
+          const activo = estadoStr.toLowerCase() === 'activo' || 
+                         estadoStr.toLowerCase() === 'true' || 
+                         estadoStr === '1';
+
+          const aft = this.repo.create({
+            rotulo,
+            nombre,
+            area,
+            subclasificacion,
+            activo,
+          });
+
+          await this.repo.save(aft);
+
+          await this.registrarHistorial(
+            aft.id,
+            'AFT creado mediante importación'
+          );
+
+          resultado.exitosos++;
+        } catch (error) {
           resultado.errores++;
+          const mensaje = error instanceof Error ? error.message : String(error);
           resultado.mensajes.push(
-            `Fila ${fila}: Faltan campos obligatorios: ${camposFaltantes.join(', ')}`
+            `Fila ${fila}: ${mensaje}`
           );
-          continue;
         }
+      }
 
-        const existe = await this.repo.findOne({
-          where: { rotulo },
-        });
-
-        if (existe) {
-          resultado.duplicados++;
-          resultado.mensajes.push(
-            `Fila ${fila}: Rótulo "${rotulo}" ya existe (omitido)`
-          );
-          continue;
-        }
-
-        const area = await this.areaRepo.findOne({
-          where: { nombre: areaNombre },
-        });
-
-        if (!area) {
-          resultado.errores++;
-          resultado.mensajes.push(
-            `Fila ${fila}: Área "${areaNombre}" no encontrada en el sistema`
-          );
-          continue;
-        }
-
-        const subclasificacion = await this.subRepo.findOne({
-          where: { nombre: subNombre },
-        });
-
-        if (!subclasificacion) {
-          resultado.errores++;
-          resultado.mensajes.push(
-            `Fila ${fila}: Subclasificación "${subNombre}" no encontrada en el sistema`
-          );
-          continue;
-        }
-
-        const activo = estadoStr.toLowerCase() === 'activo' || 
-                       estadoStr.toLowerCase() === 'true' || 
-                       estadoStr === '1';
-
-        const aft = this.repo.create({
-          rotulo,
-          nombre,
-          area,
-          subclasificacion,
-          activo,
-        });
-
-        await this.repo.save(aft);
-
-        await this.registrarHistorial(
-          aft.id,
-          'AFT creado mediante importación'
-        );
-
-        resultado.exitosos++;
-      } catch (error) {
-        resultado.errores++;
-        const mensaje = error instanceof Error ? error.message : String(error);
-        resultado.mensajes.push(
-          `Fila ${fila}: ${mensaje}`
+      if (resultado.exitosos > 0) {
+        resultado.mensajes.unshift(
+          `✓ ${resultado.exitosos} AFT(s) importados correctamente`
         );
       }
-    }
+      if (resultado.duplicados > 0) {
+        resultado.mensajes.unshift(
+          `⚠ ${resultado.duplicados} rótulo(s) duplicado(s) omitido(s)`
+        );
+      }
+      if (resultado.errores > 0) {
+        resultado.mensajes.unshift(
+          `✗ ${resultado.errores} fila(s) con errores`
+        );
+      }
 
-    if (resultado.exitosos > 0) {
-      resultado.mensajes.unshift(
-        `✓ ${resultado.exitosos} AFT(s) importados correctamente`
-      );
+      return resultado;
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : 'Error desconocido';
+      throw new BadRequestException(`Error al procesar archivo: ${mensaje}`);
     }
-    if (resultado.duplicados > 0) {
-      resultado.mensajes.unshift(
-        `⚠ ${resultado.duplicados} rótulo(s) duplicado(s) omitido(s)`
-      );
-    }
-    if (resultado.errores > 0) {
-      resultado.mensajes.unshift(
-        `✗ ${resultado.errores} fila(s) con errores`
-      );
-    }
-
-    return resultado;
-  } catch (error) {
-    const mensaje = error instanceof Error ? error.message : 'Error desconocido';
-    throw new BadRequestException(`Error al procesar archivo: ${mensaje}`);
   }
-}
 
   async findByIds(ids: number[]): Promise<Aft[]> {
     return this.repo.find({

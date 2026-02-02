@@ -9,12 +9,14 @@ import { AftController } from './aft.controller';
 import { Area } from '../area/entities/area.entity';
 import { AreaModule } from '../area/area.module';
 import { SubclasificacionModule } from '../subclasificacion/subclasificacion.module';
+import { ConteoAftModule } from '../conteo/conteo.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Aft, AftHistorial, Area]),
     AreaModule,
     forwardRef(() => SubclasificacionModule),
+    forwardRef(() => ConteoAftModule),
   ],
   controllers: [AftController],
   providers: [AftService, AftResolver],

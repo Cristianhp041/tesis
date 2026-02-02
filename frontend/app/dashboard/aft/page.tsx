@@ -1,197 +1,149 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@apollo/client/react";
-import { Plus, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Package, ClipboardList, ArrowLeft } from "lucide-react";
 
-import { GET_AFTS } from "./graphql/getAfts";
-import { Aft } from "./types/aft";
-import { AftFilterState } from "./types/aftFilters";
-import AftFilters from "./components/AftFilters";
-import AftTable from "./components/AftTable";
-import AftBulkActions from "./components/AftBulkActions";
-import EditarAftModal from "./components/EditarAftModal";
-import AftHistorialModal from "./components/AftHistorialModal";
-import CrearAftModal from "./components/CrearAftModal";
-import ImportarAftModal from "./components/ImportarAftModal";
+type UserRole = "ADMIN" | "USER";
 
-export default function AftPage() {
-  const { data, loading, error, refetch } = useQuery<{ afts: Aft[] }>(GET_AFTS);
-  const [openCrear, setOpenCrear] = useState(false);
-  const [openImportar, setOpenImportar] = useState(false);
+interface MeUser {
+  role: UserRole;
+}
 
-  const [filters, setFilters] = useState<AftFilterState>({});
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+type ModuleColor = "blue" | "green" | "purple" | "red";
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+interface ModuleItem {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  path: string;
+  color: ModuleColor;
+  adminOnly?: boolean;
+}
 
-  const [aftSeleccionado, setAftSeleccionado] = useState<Aft | null>(null);
-  const [openEditar, setOpenEditar] = useState(false);
-  const [openHistorial, setOpenHistorial] = useState(false);
+interface ColorStyle {
+  border: string;
+  icon: string;
+  hover: string;
+}
 
-  const allFilteredAfts = useMemo(() => {
-    const afts = data?.afts ?? [];
+const colorStyles: Record<ModuleColor, ColorStyle> = {
+  blue: {
+    border: "border-blue-200",
+    icon: "bg-blue-100 text-blue-600",
+    hover: "group-hover:bg-blue-600",
+  },
+  green: {
+    border: "border-green-200",
+    icon: "bg-green-100 text-green-600",
+    hover: "group-hover:bg-green-600",
+  },
+  purple: {
+    border: "border-purple-200",
+    icon: "bg-purple-100 text-purple-600",
+    hover: "group-hover:bg-purple-600",
+  },
+  red: {
+    border: "border-red-200",
+    icon: "bg-red-100 text-red-600",
+    hover: "group-hover:bg-red-600",
+  },
+};
 
-    return afts.filter((aft) => {
-      if (
-        filters.search &&
-        !`${aft.rotulo} ${aft.nombre}`
-          .toLowerCase()
-          .includes(filters.search.toLowerCase())
-      )
-        return false;
+export default function AFTPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<MeUser | null>(null);
 
-      if (filters.areaId && aft.area?.id !== filters.areaId) return false;
-      if (
-        filters.subclasificacionId &&
-        aft.subclasificacion?.id !== filters.subclasificacionId
-      )
-        return false;
-      if (filters.activo !== undefined && aft.activo !== filters.activo)
-        return false;
-
-      return true;
-    });
-  }, [data?.afts, filters]);
-
-  const paginatedAfts = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return allFilteredAfts.slice(startIndex, endIndex);
-  }, [allFilteredAfts, currentPage, itemsPerPage]);
-
-  const toggle = (id: number) =>
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-
-  const toggleAll = () => {
-    if (selectedIds.length === paginatedAfts.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(paginatedAfts.map((a) => a.id));
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.replace("/");
+      return;
     }
-  };
 
-  const handleFilterChange = (partial: Partial<AftFilterState>) => {
-    setFilters((prev) => ({ ...prev, ...partial }));
-    setCurrentPage(1);
-    setSelectedIds([]);
-  };
+    fetch("http://localhost:3001/users/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data: MeUser) => setUser(data))
+      .catch(() => router.replace("/"));
+  }, [router]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
-    );
-  }
+  if (!user) return null;
 
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-800">Error al cargar AFT</p>
-        </div>
-      </div>
-    );
-  }
+  const modules: ModuleItem[] = [
+    {
+      title: "Inventario AFT",
+      description: "Gestión y registro de activos fijos tangibles",
+      icon: Package,
+      path: "/dashboard/aft/Inventario",
+      color: "green",
+    },
+    {
+      title: "Plan de Conteo Anual",
+      description: "Planificación y seguimiento de inventarios",
+      icon: ClipboardList,
+      path: "/dashboard/aft/conteo",
+      color: "blue",
+    },
+  ];
+
+  const visibleModules = modules.filter(
+    (module) => !module.adminOnly || user.role === "ADMIN"
+  );
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
-            Activos Fijos Tangibles
-          </h1>
-          <p className="text-slate-500">
-            Control e inventario institucional
-          </p>
-        </div>
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="flex items-center gap-2 text-slate-600 hover:text-slate-800 mb-6 transition-colors"
+      >
+        <ArrowLeft size={20} />
+        <span>Volver al panel principal</span>
+      </button>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => setOpenImportar(true)}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg transition"
-          >
-            <Upload size={20} />
-            Importar AFT
-          </button>
-
-          <button
-            onClick={() => setOpenCrear(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg transition"
-          >
-            <Plus size={20} />
-            Crear AFT
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-slate-800 mb-2">
+          Activos Fijos Tangibles
+        </h1>
+        <p className="text-slate-500">
+          Selecciona el módulo con el que deseas trabajar
+        </p>
       </div>
 
-      <div className="mb-4">
-        <AftFilters
-          {...filters}
-          onChange={handleFilterChange}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {visibleModules.map((module) => {
+          const Icon = module.icon;
+          const style = colorStyles[module.color];
+
+          return (
+            <button
+              key={module.title}
+              onClick={() => router.push(module.path)}
+              className={`group bg-white rounded-xl border-2 ${style.border} p-6 shadow hover:shadow-xl transition-all duration-300 text-left hover:-translate-y-1`}
+            >
+              <div
+                className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${style.icon} ${style.hover} group-hover:text-white transition`}
+              >
+                <Icon size={28} />
+              </div>
+
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                {module.title}
+              </h3>
+
+              <p className="text-sm text-slate-500">
+                {module.description}
+              </p>
+            </button>
+          );
+        })}
       </div>
-
-      <div className="mb-4">
-        <AftBulkActions
-          selectedIds={selectedIds}
-          clearSelection={() => setSelectedIds([])}
-        />
-      </div>
-
-      <AftTable
-        afts={paginatedAfts}
-        selectedIds={selectedIds}
-        onToggle={toggle}
-        onToggleAll={toggleAll}
-        onEdit={(aft) => {
-          setAftSeleccionado(aft);
-          setOpenEditar(true);
-        }}
-        onViewHistory={(aft) => {
-          setAftSeleccionado(aft);
-          setOpenHistorial(true);
-        }}
-        currentPage={currentPage}
-        itemsPerPage={itemsPerPage}
-        totalItems={allFilteredAfts.length}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={setItemsPerPage}
-      />
-
-      {openEditar && aftSeleccionado && (
-        <EditarAftModal
-          open
-          aft={aftSeleccionado}
-          onClose={() => setOpenEditar(false)}
-        />
-      )}
-
-      {openHistorial && aftSeleccionado && (
-        <AftHistorialModal
-          open
-          aftId={aftSeleccionado.id}
-          onClose={() => setOpenHistorial(false)}
-        />
-      )}
-
-      <CrearAftModal
-        open={openCrear}
-        onClose={() => setOpenCrear(false)}
-      />
-
-      <ImportarAftModal
-        open={openImportar}
-        onClose={() => setOpenImportar(false)}
-        onSuccess={() => {
-          refetch();
-          setOpenImportar(false);
-        }}
-      />
     </div>
   );
 }

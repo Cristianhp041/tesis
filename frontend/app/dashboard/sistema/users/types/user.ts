@@ -1,6 +1,6 @@
 export enum UserRole {
-  ADMIN = "ADMIN",
-  USER = "USER",
+  ADMIN = 'ADMIN',
+  USER = 'USER',
 }
 
 export interface User {
@@ -8,4 +8,12 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
+}
+
+export interface GetMeResponse {
+  me: {
+    id: number;
+    email: string;
+    role: UserRole;
+  };
 }

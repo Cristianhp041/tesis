@@ -2,7 +2,7 @@
 
 import { Edit, History } from "lucide-react";
 import { Aft } from "../types/aft";
-import Pagination from "../../trabajadores/components/Paginacion";
+import Pagination from "../../../trabajadores/components/Paginacion";
 
 type Props = {
   afts: Aft[];

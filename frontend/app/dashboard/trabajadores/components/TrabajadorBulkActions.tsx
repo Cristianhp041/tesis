@@ -25,7 +25,6 @@ export default function TrabajadorBulkActions({
 
   const handleExport = () => {
     try {
-
       const selectedTrabajadores = data?.filterTrabajadores.data.filter(t => 
         selectedIds.includes(t.id)
       ) || [];
@@ -35,36 +34,40 @@ export default function TrabajadorBulkActions({
         return;
       }
 
-      const excelData = selectedTrabajadores.map(t => ({
-        Nombre: t.nombre,
-        Apellidos: t.apellidos,
-        Expediente: t.expediente,
-        Telefono: t.telefono || '-',
-        Cargo: t.cargo?.nombre || '-',
-        Provincia: t.provincia?.nombre || '-',
-        Municipio: t.municipio?.nombre || '-',
-        Estado: t.activo ? 'Activo' : 'Inactivo'
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Trabajadores');
-
-      const colWidths = [
-        { wch: 15 }, 
-        { wch: 20 },  
-        { wch: 15 },  
-        { wch: 12 },  
-        { wch: 20 },  
-        { wch: 20 },  
-        { wch: 25 },  
-        { wch: 12 }  
+      const exportData = [
+        ['Nombre', 'Apellidos', 'Expediente', 'Telefono', 'Cargo', 'Provincia', 'Municipio', 'Estado'],
+        ...selectedTrabajadores.map(t => [
+          t.nombre,
+          t.apellidos,
+          t.expediente,
+          t.telefono || '-',
+          t.cargo?.nombre || '-',
+          t.provincia?.nombre || '-',
+          t.municipio?.nombre || '-',
+          t.activo ? 'Activo' : 'Inactivo',
+        ])
       ];
-      ws['!cols'] = colWidths;
+
+      const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+      
+      worksheet['!cols'] = [
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 12 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Trabajadores');
 
       const today = new Date().toISOString().split('T')[0];
       const filename = `Trabajadores_Export_${today}.xlsx`;
-      XLSX.writeFile(wb, filename);
+      
+      XLSX.writeFile(workbook, filename);
 
       toast.success(`✓ ${selectedTrabajadores.length} trabajador(es) exportado(s) correctamente`);
     } catch (error) {
@@ -75,7 +78,6 @@ export default function TrabajadorBulkActions({
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between">
-
       <span className="text-sm font-semibold text-blue-800">
         {selectedIds.length} trabajador(es) seleccionado(s)
       </span>

@@ -3,6 +3,7 @@
 import { X, Upload, FileSpreadsheet, Download, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from 'xlsx';
 
 interface ImportResult {
   exitosos: number;
@@ -25,61 +26,34 @@ export default function ImportarAftModal({ open, onClose, onSuccess }: Props) {
   if (!open) return null;
 
   const descargarPlantilla = () => {
-  const datos = [
-    {
-      Rotulo: "MB001",
-      Nombre: "Laptop Dell Inspiron 15",
-      Area: "Informatica",
-      Subclasificacion: "Equipos de Computo",
-      Estado: "Activo"
-    },
-    {
-      Rotulo: "MB002",
-      Nombre: "Mouse Logitech M185",
-      Area: "Informatica",
-      Subclasificacion: "Perifericos",
-      Estado: "Activo"
+    try {
+      const data = [
+        ['Rotulo', 'Nombre', 'Area', 'Subclasificacion', 'Estado'],
+        ['MB001', 'Laptop Dell Inspiron 15', 'Informatica', 'Equipos de Computo', 'Activo'],
+        ['MB002', 'Mouse Logitech M185', 'Informatica', 'Perifericos', 'Activo'],
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+      
+      worksheet['!cols'] = [
+        { wch: 15 },
+        { wch: 40 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 12 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'AFT');
+
+      XLSX.writeFile(workbook, 'plantilla_aft.xlsx');
+
+      toast.success('✓ Plantilla descargada');
+    } catch (error) {
+      console.error('Error al generar plantilla:', error);
+      toast.error('✗ Error al generar plantilla');
     }
-  ];
-
-  const headers = Object.keys(datos[0]);
-  
-  let xml = '<?xml version="1.0"?>\n';
-  xml += '<?mso-application progid="Excel.Sheet"?>\n';
-  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
-  xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
-  xml += ' <Worksheet ss:Name="AFT">\n';
-  xml += '  <Table>\n';
-  
-  xml += '   <Row>\n';
-  headers.forEach(h => {
-    xml += `    <Cell><Data ss:Type="String">${h}</Data></Cell>\n`;
-  });
-  xml += '   </Row>\n';
-  
-  datos.forEach(row => {
-    xml += '   <Row>\n';
-    headers.forEach(h => {
-      xml += `    <Cell><Data ss:Type="String">${row[h as keyof typeof row]}</Data></Cell>\n`;
-    });
-    xml += '   </Row>\n';
-  });
-  
-  xml += '  </Table>\n';
-  xml += ' </Worksheet>\n';
-  xml += '</Workbook>';
-
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'plantilla_aft.xls';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(link.href);
-
-  toast.success('✓ Plantilla descargada');
-};
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

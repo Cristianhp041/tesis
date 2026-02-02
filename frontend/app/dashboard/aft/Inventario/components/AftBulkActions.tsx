@@ -57,7 +57,7 @@ export default function AftBulkActions({
 
   if (selectedIds.length === 0) return null;
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const selectedAfts = aftsData?.afts.filter(aft => 
         selectedIds.includes(aft.id)
@@ -68,30 +68,36 @@ export default function AftBulkActions({
         return;
       }
 
-      const excelData = selectedAfts.map(aft => ({
-        Rótulo: aft.rotulo,
-        Nombre: aft.nombre,
-        Área: aft.area?.nombre || '-',
-        Subclasificación: aft.subclasificacion?.nombre || '-',
-        Estado: aft.activo ? 'Activo' : 'Inactivo'
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'AFT');
-
-      const colWidths = [
-        { wch: 15 },  
-        { wch: 40 },  
-        { wch: 25 },  
-        { wch: 30 },  
-        { wch: 12 }  
+      // Crear datos para xlsx
+      const data = [
+        ['Rótulo', 'Nombre', 'Área', 'Subclasificación', 'Estado'],
+        ...selectedAfts.map(aft => [
+          aft.rotulo,
+          aft.nombre,
+          aft.area?.nombre || '-',
+          aft.subclasificacion?.nombre || '-',
+          aft.activo ? 'Activo' : 'Inactivo',
+        ])
       ];
-      ws['!cols'] = colWidths;
+
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+      
+      // Configurar anchos de columnas
+      worksheet['!cols'] = [
+        { wch: 15 },
+        { wch: 40 },
+        { wch: 25 },
+        { wch: 30 },
+        { wch: 12 },
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'AFT');
 
       const today = new Date().toISOString().split('T')[0];
       const filename = `AFT_Export_${today}.xlsx`;
-      XLSX.writeFile(wb, filename);
+      
+      XLSX.writeFile(workbook, filename);
 
       toast.success(`✓ ${selectedAfts.length} AFT exportados correctamente`);
     } catch (error) {
@@ -207,12 +213,10 @@ export default function AftBulkActions({
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-wrap gap-4 items-center justify-between">
-      {/* Info */}
       <span className="text-sm font-semibold text-blue-800">
         {selectedIds.length} AFT seleccionados
       </span>
 
-      {/* Acciones */}
       <div className="flex gap-3 items-center flex-wrap">
         <button
           onClick={handleExport}

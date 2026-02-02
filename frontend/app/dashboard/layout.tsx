@@ -130,6 +130,19 @@ export default function DashboardLayout({
       label: "Activos Fijos Tangibles",
       icon: Package,
       href: "/dashboard/aft",
+      expandable: true,
+      subsections: [
+        {
+          label: "Inventario AFT",
+          icon: Package,
+          href: "/dashboard/aft/Inventario",
+        },
+        {
+          label: "Plan de Conteo Anual",
+          icon: Calendar,
+          href: "/dashboard/aft/conteo",
+        },
+      ],
     },
     {
     id: "documentos",
@@ -199,7 +212,7 @@ export default function DashboardLayout({
 
       <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-blue-700 shadow-md px-6 py-3.5 z-40">
         <div className="flex items-center justify-between w-full">
-  {/* Izquierda: Menú + Logo */}
+
   <div className="flex items-center gap-4">
     <button
       onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -224,7 +237,7 @@ export default function DashboardLayout({
     </Link>
   </div>
 
-  {/* Derecha: Notificaciones */}
+
   <div className="flex items-center gap-4">
     <NotificationBell />
   </div>

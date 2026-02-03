@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // 🆕 IMPORTAR
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -15,8 +16,16 @@ import { SubclasificacionModule } from './subclasificacion/subclasificacion.modu
 import { DocumentsModule } from './documentos/documento.module';
 import { NotificationModule } from './notificacion/notificacion.module';
 import { ConteoAftModule } from './conteo/conteo.module';
+import { EmailModule } from './email/email.module'; // 🆕 IMPORTAR (si no lo tienes)
+
 @Module({
   imports: [
+    // 🆕 AGREGAR ESTO PRIMERO (debe ser lo primero)
+    ConfigModule.forRoot({
+      isGlobal: true,      // Hace que ConfigService esté disponible en todos los módulos
+      envFilePath: '.env', // Ruta al archivo .env
+    }),
+
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: true,
@@ -33,7 +42,7 @@ import { ConteoAftModule } from './conteo/conteo.module';
       password: 'Admin123',
       database: 'tesis_bd',
       autoLoadEntities: true,
-      synchronize: true, 
+      synchronize: true,
       logging: false,
     }),
 
@@ -49,6 +58,7 @@ import { ConteoAftModule } from './conteo/conteo.module';
     DocumentsModule,
     NotificationModule,
     ConteoAftModule,
+    EmailModule, // 🆕 Agregar si no lo tienes
   ],
 })
 export class AppModule {}

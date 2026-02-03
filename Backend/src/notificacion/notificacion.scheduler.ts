@@ -1,3 +1,4 @@
+// src/notification/notificacion.scheduler.ts - VERSIÓN ACTUALIZADA
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { NotificationService } from './notificacion.service';
@@ -14,6 +15,10 @@ export class NotificationScheduler {
     private readonly conteoService: ConteoService,
   ) {}
 
+  /**
+   * Verificar y enviar notificaciones de conteo mensual
+   * Se ejecuta todos los días a las 8:00 AM
+   */
   @Cron('0 8 * * *', {
     name: 'check-conteo-notifications',
     timeZone: 'America/Havana',
@@ -72,10 +77,12 @@ export class NotificationScheduler {
     }
 
     if (debeNotificar) {
+      // 🆕 El parámetro sendEmail=true enviará emails automáticamente
       await this.notificationService.createBroadcastNotification(
         type,
         title,
         message,
+        true, // 🆕 Enviar email
       );
       
       this.notificacionesEnviadas.add(key);
@@ -89,6 +96,10 @@ export class NotificationScheduler {
     }
   }
 
+  /**
+   * Limpieza de notificaciones antiguas
+   * Se ejecuta todos los domingos a las 2:00 AM
+   */
   @Cron('0 2 * * 0', {
     name: 'clean-old-notifications',
     timeZone: 'America/Havana',
@@ -100,6 +111,25 @@ export class NotificationScheduler {
       await this.notificationService.cleanOldNotifications(30);
     } catch (error) {
       this.logger.error('Error en limpieza:', error);
+    }
+  }
+
+  /**
+   * 🆕 Enviar resumen diario de notificaciones por email
+   * Se ejecuta todos los días a las 9:00 AM
+   */
+  @Cron('0 9 * * *', {
+    name: 'send-daily-digest',
+    timeZone: 'America/Havana',
+  })
+  async sendDailyDigest() {
+    this.logger.log('Enviando resumen diario de notificaciones...');
+
+    try {
+      await this.notificationService.sendDailyDigest();
+      this.logger.log('Resumen diario enviado exitosamente');
+    } catch (error) {
+      this.logger.error('Error enviando resumen diario:', error);
     }
   }
 }

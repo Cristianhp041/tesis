@@ -23,7 +23,7 @@ export class AsignacionMensualService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
 
-    @Inject(forwardRef(() => AftService)) 
+    @Inject(forwardRef(() => AftService))
     private aftService: AftService,
   ) {}
 
@@ -98,6 +98,21 @@ export class AsignacionMensualService {
       throw new BadRequestException('La asignación debe estar EN_PROCESO para completarla');
     }
 
+    const aftsActivos = await this.aftRepository.find({
+      where: { 
+        id: In(asignacion.activosAsignados),
+        activo: true
+      }
+    });
+
+    const cantidadActivosActivos = aftsActivos.length;
+    
+    if (asignacion.activosContados < cantidadActivosActivos) {
+      throw new BadRequestException(
+        `No se puede completar. Faltan ${cantidadActivosActivos - asignacion.activosContados} activos por contar`
+      );
+    }
+
     asignacion.estado = EstadoAsignacionMensual.COMPLETADO;
 
     return await this.asignacionMensualRepository.save(asignacion);
@@ -126,18 +141,19 @@ export class AsignacionMensualService {
       resumenPorSubclasificacion,
     };
   }
+
   async obtenerCantidadAftsDesactivados(asignacionId: number): Promise<number> {
-  const asignacion = await this.obtenerPorId(asignacionId);
-  
-  const aftsDesactivados = await this.aftRepository.count({
-    where: { 
-      id: In(asignacion.activosAsignados),
-      activo: false 
-    }
-  });
-  
-  return aftsDesactivados;
-}
+    const asignacion = await this.obtenerPorId(asignacionId);
+    
+    const aftsDesactivados = await this.aftRepository.count({
+      where: { 
+        id: In(asignacion.activosAsignados),
+        activo: false 
+      }
+    });
+    
+    return aftsDesactivados;
+  }
 
   private calcularResumenPorArea(activos: Record<string, unknown>[]): Record<string, unknown>[] {
     const areaMap = new Map<string, Record<string, unknown>>();
@@ -250,6 +266,7 @@ export class AsignacionMensualService {
     asignacion.confirmadoConteo = true;
     asignacion.confirmadoPorId = usuario.id;
     asignacion.fechaConfirmacion = new Date();
+    asignacion.estado = EstadoAsignacionMensual.CERRADO;
 
     await this.asignacionMensualRepository.save(asignacion);
 
@@ -300,63 +317,64 @@ export class AsignacionMensualService {
     const asignacion = await this.obtenerPorId(asignacionId);
     return !asignacion.confirmadoConteo;
   }
+
   async actualizarProgreso(asignacionId: number): Promise<AsignacionMensual> {
-  const asignacion = await this.obtenerPorId(asignacionId);
+    const asignacion = await this.obtenerPorId(asignacionId);
 
-  const registros = await this.registroConteoRepository.find({
-    where: { asignacionMensualId: asignacionId },
-  });
-
-  const totales = registros.reduce(
-    (acc, reg) => ({
-      contados: acc.contados + 1,
-      encontrados: acc.encontrados + (reg.encontrado ? 1 : 0),
-      faltantes: acc.faltantes + (!reg.encontrado ? 1 : 0),
-      discrepancias: acc.discrepancias + (reg.tieneDiscrepancia ? 1 : 0),
-    }),
-    { contados: 0, encontrados: 0, faltantes: 0, discrepancias: 0 }
-  );
-
-  asignacion.activosContados = totales.contados;
-  asignacion.activosEncontrados = totales.encontrados;
-  asignacion.activosFaltantes = totales.faltantes;
-  asignacion.activosConDiscrepancias = totales.discrepancias;
-
-  return await this.asignacionMensualRepository.save(asignacion);
-}
-
- async removerAftDeAsignaciones(aftId: number): Promise<void> {
-  const asignaciones = await this.asignacionMensualRepository
-    .createQueryBuilder('asig')
-    .where('asig.confirmadoConteo = :confirmado', { confirmado: false })
-    .andWhere(':aftId = ANY(asig.activosAsignados)', { aftId })
-    .getMany();
-
-  for (const asignacion of asignaciones) {
-    const registroExistente = await this.registroConteoRepository.findOne({
-      where: {
-        asignacionMensualId: asignacion.id,
-        aftId: aftId,
-      },
+    const registros = await this.registroConteoRepository.find({
+      where: { asignacionMensualId: asignacionId },
     });
 
-    if (registroExistente) {
-      await this.registroConteoRepository.remove(registroExistente);
-    }
+    const totales = registros.reduce(
+      (acc, reg) => ({
+        contados: acc.contados + 1,
+        encontrados: acc.encontrados + (reg.encontrado ? 1 : 0),
+        faltantes: acc.faltantes + (!reg.encontrado ? 1 : 0),
+        discrepancias: acc.discrepancias + (reg.tieneDiscrepancia ? 1 : 0),
+      }),
+      { contados: 0, encontrados: 0, faltantes: 0, discrepancias: 0 }
+    );
 
-    asignacion.activosAsignados = asignacion.activosAsignados.filter(
-      aid => aid !== aftId
-    );
-    asignacion.cantidadAsignada = Math.max(0, asignacion.cantidadAsignada - 1);
-    
-    await this.asignacionMensualRepository.save(asignacion);
-    
-    await this.actualizarProgreso(asignacion.id);
-    
-    await this.aftService.registrarHistorial(
-      aftId,
-      `Removido de asignación ${asignacion.nombreMes} ${asignacion.anno} (desactivado desde inventario)`
-    );
+    asignacion.activosContados = totales.contados;
+    asignacion.activosEncontrados = totales.encontrados;
+    asignacion.activosFaltantes = totales.faltantes;
+    asignacion.activosConDiscrepancias = totales.discrepancias;
+
+    return await this.asignacionMensualRepository.save(asignacion);
   }
-}
+
+  async removerAftDeAsignaciones(aftId: number): Promise<void> {
+    const asignaciones = await this.asignacionMensualRepository
+      .createQueryBuilder('asig')
+      .where('asig.confirmadoConteo = :confirmado', { confirmado: false })
+      .andWhere('asig.activosAsignados @> ARRAY[:aftId]::int[]', { aftId })
+      .getMany();
+
+    for (const asignacion of asignaciones) {
+      const registroExistente = await this.registroConteoRepository.findOne({
+        where: {
+          asignacionMensualId: asignacion.id,
+          aftId: aftId,
+        },
+      });
+
+      if (registroExistente) {
+        await this.registroConteoRepository.remove(registroExistente);
+      }
+
+      asignacion.activosAsignados = asignacion.activosAsignados.filter(
+        aid => aid !== aftId
+      );
+      asignacion.cantidadAsignada = Math.max(0, asignacion.cantidadAsignada - 1);
+      
+      await this.asignacionMensualRepository.save(asignacion);
+      
+      await this.actualizarProgreso(asignacion.id);
+      
+      await this.aftService.registrarHistorial(
+        aftId,
+        `Removido de asignación ${asignacion.nombreMes} ${asignacion.anno} (desactivado desde inventario)`
+      );
+    }
+  }
 }

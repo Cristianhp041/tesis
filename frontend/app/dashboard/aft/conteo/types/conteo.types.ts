@@ -1,50 +1,9 @@
-export interface ActivoDelMes {
-  id: string;
-  codigo: string;          
-  descripcion: string;    
-  ubicacion?: string;
-  estado?: string;
-  areaNombre: string;       
-  subclasificacionNombre?: string; 
-  yaContado: boolean;
-  activo?: boolean;
-    confirmadoConteo: boolean;
-}
-
-export enum EstadoPlanConteo {
-  PLANIFICADO = 'planificado',
-  EN_CURSO = 'en_curso',
-  COMPLETADO = 'completado',
-  CANCELADO = 'cancelado',
-}
-
-export enum EstadoAsignacionMensual {
-  PENDIENTE = 'pendiente',
-  EN_PROCESO = 'en_proceso',
-  COMPLETADO = 'completado',
-  CERRADO = 'cerrado',
-}
-
-export enum EstadoRegistroConteo {
-  PENDIENTE = 'pendiente',
-  CONTADO = 'contado',
-  REVISADO = 'revisado',
-  APROBADO = 'aprobado',
-}
-
-export enum TipoDiscrepancia {
-  NINGUNA = 'ninguna',
-  AREA = 'area',
-  FALTANTE = 'faltante',
-  OTRO = 'otro',
-}
-
 export interface PlanConteoAnual {
   id: number;
   anno: number;
   fechaInicio: string;
   fechaFin: string;
-  estado: EstadoPlanConteo;
+  estado: string;
   totalActivos: number;
   activosPorMes: number;
   toleranciaMin: number;
@@ -54,6 +13,12 @@ export interface PlanConteoAnual {
   activosFaltantes: number;
   activosConDiscrepancias: number;
   porcentajeProgreso: number;
+  observaciones?: string;
+  createdAt: string;
+  createdBy: {
+    id: number;
+    email: string;
+  };
   asignacionesMensuales: AsignacionMensual[];
 }
 
@@ -61,12 +26,12 @@ export interface AsignacionMensual {
   id: number;
   mes: number;
   nombreMes: string;
+  mesCalendario: number;
   anno: number;
-  estado: EstadoAsignacionMensual;
+  estado: string;
   porcentajeAsignado: number;
   cantidadAsignada: number;
   criterioAsignacion: string;
-  activosAsignados: number[];
   fechaInicio: string;
   fechaLimite: string;
   activosContados: number;
@@ -74,15 +39,27 @@ export interface AsignacionMensual {
   activosFaltantes: number;
   activosConDiscrepancias: number;
   porcentajeProgreso: number;
-
+  tasaEncontrados: number;
   confirmadoConteo: boolean;
   confirmadoPorId?: number;
   fechaConfirmacion?: string;
+  estaTodoContado: boolean;
   confirmadoPor?: {
     id: number;
     email: string;
   };
-  estaTodoContado: boolean;
+}
+
+export interface ActivoDelMes {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  ubicacion?: string;
+  estado?: string;
+  areaNombre: string;
+  subclasificacionNombre?: string;
+  yaContado: boolean;
+  activo: boolean;
 }
 
 export interface RegistroConteo {
@@ -92,18 +69,21 @@ export interface RegistroConteo {
   estadoEncontrado?: string;
   areaEncontrada?: string;
   tieneDiscrepancia: boolean;
-  tipoDiscrepancia: TipoDiscrepancia;
+  tipoDiscrepancia: string;
   descripcionDiscrepancia?: string;
   comentarios?: string;
-  fotografia?: string;
   fechaConteo: string;
-  estado: EstadoRegistroConteo;
+  estado: string;
   aft: {
-    id: number;
+    id: string;
     rotulo: string;
     nombre: string;
-    area?: { nombre: string };
-    subclasificacion?: { nombre: string };
+    area?: {
+      nombre: string;
+    };
+    subclasificacion?: {
+      nombre: string;
+    };
   };
   contadoPor: {
     email: string;

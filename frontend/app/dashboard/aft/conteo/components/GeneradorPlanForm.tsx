@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@apollo/client/react";
+import { useMutation, useQuery, useApolloClient } from "@apollo/client/react";
 import { toast } from "sonner";
 import { GENERAR_PLAN_CONTEO } from "../graphql/generarPlanConteo";
 import { GET_PLAN_ACTUAL } from "../graphql/getPlanActual";
+import { GET_ME, GetMeResponse } from "../graphql/getMe";
 
 interface Props {
   onSuccess: () => void;
@@ -15,22 +16,24 @@ export default function GeneradorPlanForm({ onSuccess, onCancel }: Props) {
   const [anno, setAnno] = useState(new Date().getFullYear() + 1);
   const [observaciones, setObservaciones] = useState("");
 
+  const apolloClient = useApolloClient();
+  const { data: userData, loading: loadingUser } = useQuery<GetMeResponse>(GET_ME);
+
   const [generarPlan, { loading }] = useMutation(GENERAR_PLAN_CONTEO, {
     refetchQueries: [{ query: GET_PLAN_ACTUAL }],
+    awaitRefetchQueries: true,
   });
-
-  const userId = 1; 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (anno < 2020 || anno > 2100) {
-      toast.error("✗ Año inválido");
+      toast.error("Año inválido");
       return;
     }
 
-    if (!userId) {
-      toast.error("✗ Debe iniciar sesión para generar un plan");
+    if (!userData?.me?.id) {
+      toast.error("Debe iniciar sesión para generar un plan");
       return;
     }
 
@@ -39,50 +42,38 @@ export default function GeneradorPlanForm({ onSuccess, onCancel }: Props) {
         variables: {
           input: {
             anno,
-            userId, 
+            userId: userData.me.id,
             observaciones: observaciones.trim() || undefined,
           },
         },
       });
 
       if (result.error) {
-        let errorMessage = "";
-        const err = result.error as unknown as Record<string, unknown>;
-
-        if (typeof err.message === "string") {
-          errorMessage = err.message;
-        }
-
-        if (!errorMessage && "graphQLErrors" in err && Array.isArray(err.graphQLErrors)) {
-          const graphQLErrors = err.graphQLErrors as unknown as Array<Record<string, unknown>>;
-          if (graphQLErrors.length > 0 && typeof graphQLErrors[0].message === "string") {
-            errorMessage = graphQLErrors[0].message;
-          }
-        }
-
-        toast.error(errorMessage || "✗ No se pudo generar el plan");
+        toast.error(result.error.message || "No se pudo generar el plan");
         return;
       }
 
-      toast.success("✓ Plan de conteo generado correctamente");
+      await apolloClient.refetchQueries({
+        include: [GET_PLAN_ACTUAL],
+      });
+
+      toast.success("Plan de conteo generado correctamente");
       onSuccess();
     } catch (error) {
-      let errorMessage = "";
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      if (!errorMessage && typeof error === "object" && error !== null && "graphQLErrors" in error) {
-        const err = error as unknown as { graphQLErrors?: Array<{ message?: string }> };
-        if (err.graphQLErrors && err.graphQLErrors.length > 0) {
-          errorMessage = err.graphQLErrors[0].message || "";
-        }
-      }
-
-      toast.error(errorMessage || "✗ Error al generar plan");
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Error al generar plan";
+      toast.error(errorMessage);
     }
   };
+
+  if (loadingUser) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -128,9 +119,9 @@ export default function GeneradorPlanForm({ onSuccess, onCancel }: Props) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || loadingUser}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-            loading
+            loading || loadingUser
               ? "bg-blue-300 cursor-not-allowed text-white"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}

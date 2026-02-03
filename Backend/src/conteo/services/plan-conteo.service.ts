@@ -5,10 +5,10 @@ import { PlanConteoAnual, EstadoPlanConteo } from '../entities/plan-conteo-anual
 import { AsignacionMensual, EstadoAsignacionMensual } from '../entities/asignacion-mensual.entity';
 import { AlgoritmoDistribucionService } from './algoritmo-distribucion.service';
 import { GenerarPlanInput } from '../dto/generarplan.input';
-import { ProgresoGeneralOutput } from '../dto/progresogeneral.output'; // ⭐ AGREGADO
+import { ProgresoGeneralOutput } from '../dto/progresogeneral.output';
 import { Aft } from '../../aft/entities/aft.entity';
 import { RegistroConteo } from '../entities/registro-conteo.entity';
-import { Workbook } from 'exceljs'; 
+import { Workbook } from 'exceljs';
 
 @Injectable()
 export class PlanConteoService {
@@ -129,7 +129,7 @@ export class PlanConteoService {
     return planFinal;
   }
 
-  async obtenerPlanActual(): Promise<PlanConteoAnual> {
+  async obtenerPlanActual(): Promise<PlanConteoAnual | null> {
     const plan = await this.planConteoRepository.findOne({
       where: [
         { estado: EstadoPlanConteo.EN_CURSO },
@@ -140,7 +140,7 @@ export class PlanConteoService {
     });
 
     if (!plan) {
-      throw new NotFoundException('No hay un plan de conteo activo');
+      return null;
     }
 
     return await this.actualizarEstadisticas(plan.id);
@@ -434,8 +434,29 @@ export class PlanConteoService {
     await this.planConteoRepository.save(plan);
   }
 
- async exportarPlanAnual(planId: number): Promise<Buffer> {
-  try {
+  async obtenerMesesProximosAVencer(diasAntes: number = 7): Promise<any[]> {
+    const hoy = new Date();
+    const fechaLimite = new Date(hoy.getTime() + diasAntes * 24 * 60 * 60 * 1000);
+
+    const mesesProximos = await this.asignacionMensualRepository
+      .createQueryBuilder('asig')
+      .where('asig.estado IN (:...estados)', { estados: [EstadoAsignacionMensual.EN_PROCESO, EstadoAsignacionMensual.PENDIENTE] })
+      .andWhere('asig.fechaLimite <= :fechaLimite', { fechaLimite })
+      .andWhere('asig.fechaLimite >= :hoy', { hoy })
+      .getMany();
+
+    return mesesProximos.map(mes => ({
+      id: mes.id,
+      nombreMes: mes.nombreMes,
+      anno: mes.anno,
+      diasRestantes: mes.getDiasRestantes(),
+      cantidadAsignada: mes.cantidadAsignada,
+      activosContados: mes.activosContados,
+      porcentajeProgreso: mes.porcentajeProgreso,
+    }));
+  }
+
+  async exportarPlanAnual(planId: number): Promise<Buffer> {
     const workbook = new Workbook();
 
     workbook.creator = 'Sistema de Gestión AFT';
@@ -586,9 +607,5 @@ export class PlanConteoService {
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
-  } catch (error) {
-    const mensaje = error instanceof Error ? error.message : 'Error desconocido';
-    throw new BadRequestException(`Error al generar Excel: ${mensaje}`);
   }
-}
 }

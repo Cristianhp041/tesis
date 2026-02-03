@@ -18,6 +18,7 @@ import { AftFilterInput } from './dto/aft-filter.input';
 import { ImportAftRowDto, ImportResultDto } from './dto/import-aft.dto';
 import * as ExcelJS from 'exceljs';
 import { AsignacionMensualService } from '../conteo/services/asignacion-mensual.service';
+import { PlanConteoService } from '../conteo/services';
 
 @Injectable()
 export class AftService {
@@ -33,6 +34,11 @@ export class AftService {
 
     @InjectRepository(Subclasificacion)
     private readonly subRepo: Repository<Subclasificacion>,
+
+    @InjectRepository(Aft)
+    private aftRepository: Repository<Aft>,
+    @Inject('CONTEO_SERVICE')
+    private planConteoService: PlanConteoService,
 
     @Inject(forwardRef(() => SubclasificacionService))
     private readonly subclasificacionService: SubclasificacionService,
@@ -83,6 +89,8 @@ export class AftService {
     const saved = await this.repo.save(aft);
 
     await this.registrarHistorial(saved.id, 'AFT creado');
+
+    await this.planConteoService.agregarNuevoAftAlPlan(saved.id);
 
     return this.findOne(saved.id);
   }
@@ -246,7 +254,6 @@ export class AftService {
     try {
       await this.asignacionMensualService.removerAftDeAsignaciones(id);
     } catch (error) {
-      console.log('Error al remover AFT de asignaciones:', error.message);
     }
 
     return this.findOne(id);

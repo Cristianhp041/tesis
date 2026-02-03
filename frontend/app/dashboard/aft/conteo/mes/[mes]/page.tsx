@@ -51,7 +51,7 @@ export default function ConteoMensualPage() {
     ],
     awaitRefetchQueries: true,
     onCompleted: () => {
-      toast.success("✅ Conteo confirmado exitosamente");
+      toast.success("✓ Conteo confirmado exitosamente");
       setShowConfirmModal(false);
     },
     onError: (error) => {

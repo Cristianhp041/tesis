@@ -50,7 +50,7 @@ export class NotificationScheduler {
         }
       }
 
-      this.logger.log('✅ Verificación de notificaciones completada');
+      this.logger.log('✓ Verificación de notificaciones completada');
     } catch (error) {
       this.logger.error('❌ Error en verificación de notificaciones:', error);
     }
@@ -83,7 +83,7 @@ export class NotificationScheduler {
     );
 
     if (completado) {
-      this.logger.log(`✅ Conteo mensual ${currentMonth}/${currentYear} ya completado`);
+      this.logger.log(`✗ Conteo mensual ${currentMonth}/${currentYear} ya completado`);
       return;
     }
 
@@ -177,7 +177,7 @@ export class NotificationScheduler {
     const completado = await this.conteoService.hasCompletedAnualConteo(currentYear);
 
     if (completado) {
-      this.logger.log(`✅ Conteo anual ${currentYear} ya completado`);
+      this.logger.log(`✓ Conteo anual ${currentYear} ya completado`);
       return;
     }
 
@@ -246,7 +246,7 @@ export class NotificationScheduler {
 
     try {
       await this.notificationService.cleanOldNotifications(30);
-      this.logger.log('✅ Limpieza completada');
+      this.logger.log('✓ Limpieza completada');
     } catch (error) {
       this.logger.error('❌ Error en limpieza:', error);
     }

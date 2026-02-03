@@ -3,6 +3,7 @@ import { PlanConteoAnual } from '../entities/plan-conteo-anual.entity';
 import { PlanConteoService } from '../services/plan-conteo.service';
 import { GenerarPlanInput } from '../dto/generarplan.input';
 import { ProgresoGeneralOutput } from '../dto/progresogeneral.output';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 
 @Resolver(() => PlanConteoAnual)
 export class PlanConteoResolver {
@@ -12,13 +13,22 @@ export class PlanConteoResolver {
   @Mutation(() => PlanConteoAnual)
   async generarPlanConteo(
     @Args('input') input: GenerarPlanInput,
+    @CurrentUser('id') userId?: number,
   ): Promise<PlanConteoAnual> {
-    return await this.planConteoService.generarPlan(input);
+    const finalInput = {
+      ...input,
+      userId: userId || input.userId,
+    };
+    return await this.planConteoService.generarPlan(finalInput);
   }
 
-  @Query(() => PlanConteoAnual)
-  async planConteoActual(): Promise<PlanConteoAnual> {
-    return await this.planConteoService.obtenerPlanActual();
+  @Query(() => PlanConteoAnual, { nullable: true })
+  async planConteoActual(): Promise<PlanConteoAnual | null> {
+    try {
+      return await this.planConteoService.obtenerPlanActual();
+    } catch (error) {
+      return null;
+    }
   }
 
   @Query(() => PlanConteoAnual)
@@ -96,5 +106,12 @@ export class PlanConteoResolver {
     @Args('planId', { type: () => Int }) planId: number,
   ): Promise<number> {
     return await this.planConteoService.contarActivosNuevosSinAsignar(planId);
-  } 
+  }
+
+  @Query(() => [PlanConteoAnual])
+  async mesesProximosAVencer(
+    @Args('diasAntes', { type: () => Int, defaultValue: 7 }) diasAntes: number,
+  ): Promise<any[]> {
+    return await this.planConteoService.obtenerMesesProximosAVencer(diasAntes);
+  }
 }

@@ -74,12 +74,12 @@ export class AlgoritmoDistribucionService {
   ) {}
 
   async generarDistribucion(año: number): Promise<ResultadoDistribucion> {
+    
     const activos = await this.aftRepository.find({
       where: { activo: true },
       relations: ['area', 'subclasificacion'],
       order: { rotulo: 'ASC' }
     });
-    
     
     if (activos.length === 0) {
       throw new Error('No hay activos disponibles para distribuir');
@@ -95,11 +95,9 @@ export class AlgoritmoDistribucionService {
     }));
     
     activosOrdenados.sort((a, b) => {
-
       if (a.areaNombre > b.areaNombre) return -1;
       if (a.areaNombre < b.areaNombre) return 1;
       
-
       if (a.subclasificacionNombre < b.subclasificacionNombre) return -1;
       if (a.subclasificacionNombre > b.subclasificacionNombre) return 1;
       
@@ -107,22 +105,24 @@ export class AlgoritmoDistribucionService {
     });
     
     const totalActivos = activosOrdenados.length;
-    const metaPorMes = Math.round(totalActivos / 10);
+    const metaPorMes = Math.floor(totalActivos / 10);
+    const sobrantes = totalActivos % 10;
     
     const toleranciaMin = Math.floor(metaPorMes * 0.85);
     const toleranciaMax = Math.ceil(metaPorMes * 1.15);
     
     const bloquesMensuales: BloqueMensual[] = [];
     
+    let indiceActual = 0;
+    
     for (let mes = 1; mes <= 10; mes++) {
       const nombreMes = this.MESES_TRABAJO[mes - 1].nombre;
       
-      const inicio = (mes - 1) * metaPorMes;
-      const fin = mes === 10 
-        ? activosOrdenados.length  
-        : mes * metaPorMes;
+      const cantidadParaEsteMes = mes <= sobrantes ? metaPorMes + 1 : metaPorMes;
       
-      const activosDelMes = activosOrdenados.slice(inicio, fin);
+      const fin = indiceActual + cantidadParaEsteMes;
+      const activosDelMes = activosOrdenados.slice(indiceActual, fin);
+      
       const detalle = this.agruparPorAreaYSubclas(activosDelMes);
       
       const bloqueMensual: BloqueMensual = {
@@ -136,17 +136,13 @@ export class AlgoritmoDistribucionService {
       };
       
       bloquesMensuales.push(bloqueMensual);
+      
+      indiceActual = fin;
     }
-
-
+    
     this.validarDistribucion(bloquesMensuales, totalActivos);
     
     const estadisticas = this.generarEstadisticas(bloquesMensuales, metaPorMes);
-    
-    bloquesMensuales.forEach(mes => {
-      const desv = mes.cantidadAsignada - metaPorMes;
-      const signo = desv >= 0 ? '+' : '';
-    });
     
     return {
       totalActivos,
@@ -196,7 +192,6 @@ export class AlgoritmoDistribucionService {
   }
 
   private validarDistribucion(meses: BloqueMensual[], totalActivos: number): void {
-    
     if (meses.length !== 10) {
       throw new Error(`Deben ser 10 meses, hay ${meses.length}`);
     }

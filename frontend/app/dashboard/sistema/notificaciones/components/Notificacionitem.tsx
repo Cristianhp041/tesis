@@ -2,7 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { Bell, AlertCircle, CheckCircle, Calendar } from "lucide-react";
+import { Bell, AlertCircle, Calendar } from "lucide-react";
 import { Notification, NotificationType } from "../type/notificacion";
 
 interface Props {
@@ -14,15 +14,9 @@ export default function NotificationItem({ notification, onRead }: Props) {
   const getIcon = () => {
     switch (notification.type) {
       case NotificationType.CONTEO_MENSUAL_VENCIDO:
-      case NotificationType.CONTEO_ANUAL_VENCIDO:
         return <AlertCircle className="w-5 h-5 text-red-500" />;
       
-      case NotificationType.CONTEO_MENSUAL_COMPLETADO:
-      case NotificationType.CONTEO_ANUAL_COMPLETADO:
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      
       case NotificationType.CONTEO_MENSUAL_PROXIMO:
-      case NotificationType.CONTEO_ANUAL_PROXIMO:
         return <Calendar className="w-5 h-5 text-blue-500" />;
       
       default:

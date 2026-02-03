@@ -1,81 +1,53 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AsignacionMensual } from '../conteo/entities/asignacion-mensual.entity';
+import { PlanConteoAnual, EstadoPlanConteo } from '../conteo/entities/plan-conteo-anual.entity';
 
-/**
- * PLACEHOLDER SERVICE - CONTEO
- * 
- * Este servicio tiene métodos placeholder que siempre retornan false.
- * Esto hace que el sistema de notificaciones SIEMPRE notifique.
- * 
- * CUANDO IMPLEMENTES EL MÓDULO DE CONTEOS:
- * 1. Reemplaza estos métodos con la lógica real
- * 2. Conecta con la base de datos de conteos
- * 3. Verifica si realmente se completó el conteo
- */
 @Injectable()
 export class ConteoService {
-  /**
-   * PLACEHOLDER - Verificar si se completó el conteo mensual del 10%
-   * 
-   * @param year - Año del conteo
-   * @param month - Mes del conteo (1-12)
-   * @returns true si se completó, false si no
-   * 
-   * TODO: IMPLEMENTAR LÓGICA REAL
-   * Pasos a implementar:
-   * 1. Buscar en la tabla de conteos mensuales
-   * 2. WHERE año = year AND mes = month
-   * 3. WHERE estado = 'COMPLETADO'
-   * 4. Si existe, return true
-   * 5. Si no existe, return false
-   */
-  async hasCompletedMensualConteo(year: number, month: number): Promise<boolean> {
-    // Por ahora siempre retorna false para que notifique
-    console.log(`[CONTEO SERVICE] Verificando conteo mensual ${month}/${year} - PLACEHOLDER (siempre false)`);
-    return false;
+  constructor(
+    @InjectRepository(AsignacionMensual)
+    private asignacionMensualRepository: Repository<AsignacionMensual>,
+    @InjectRepository(PlanConteoAnual)
+    private planConteoRepository: Repository<PlanConteoAnual>,
+  ) {}
 
-    /* EJEMPLO DE IMPLEMENTACIÓN FUTURA:
-    
-    const conteo = await this.conteoMensualRepository.findOne({
-      where: {
-        year,
-        month,
-        estado: 'COMPLETADO'
-      }
+  async obtenerMesesSinConfirmar(): Promise<AsignacionMensual[]> {
+    const planActual = await this.planConteoRepository.findOne({
+      where: [
+        { estado: EstadoPlanConteo.EN_CURSO },
+        { estado: EstadoPlanConteo.PLANIFICADO },
+      ],
+      relations: ['asignacionesMensuales'],
+      order: { createdAt: 'DESC' },
     });
-    
-    return !!conteo;
-    */
+
+    if (!planActual) {
+      return [];
+    }
+
+    const mesesSinConfirmar = await this.asignacionMensualRepository.find({
+      where: {
+        planConteoId: planActual.id,
+        confirmadoConteo: false,
+      },
+      order: { mes: 'ASC' },
+    });
+
+    return mesesSinConfirmar;
   }
 
-  /**
-   * PLACEHOLDER - Verificar si se completó el conteo anual del 100%
-   * 
-   * @param year - Año del conteo
-   * @returns true si se completó, false si no
-   * 
-   * TODO: IMPLEMENTAR LÓGICA REAL
-   * Pasos a implementar:
-   * 1. Buscar en la tabla de conteos anuales
-   * 2. WHERE año = year
-   * 3. WHERE estado = 'COMPLETADO'
-   * 4. Si existe, return true
-   * 5. Si no existe, return false
-   */
-  async hasCompletedAnualConteo(year: number): Promise<boolean> {
-    // Por ahora siempre retorna false para que notifique
-    console.log(`[CONTEO SERVICE] Verificando conteo anual ${year} - PLACEHOLDER (siempre false)`);
-    return false;
-
-    /* EJEMPLO DE IMPLEMENTACIÓN FUTURA:
+  calcularDiasRestantes(fechaLimite: Date): number {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
     
-    const conteo = await this.conteoAnualRepository.findOne({
-      where: {
-        year,
-        estado: 'COMPLETADO'
-      }
-    });
+    const limite = new Date(fechaLimite);
+    limite.setHours(0, 0, 0, 0);
     
-    return !!conteo;
-    */
+    const diff = limite.getTime() - hoy.getTime();
+    const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    
+    return dias;
   }
 }

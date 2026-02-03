@@ -3,17 +3,8 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } f
 import { User } from '../../user/entities/user.entity';
 
 export enum NotificationType {
-  // Conteo 10% mensual
   CONTEO_MENSUAL_PROXIMO = 'CONTEO_MENSUAL_PROXIMO',
   CONTEO_MENSUAL_VENCIDO = 'CONTEO_MENSUAL_VENCIDO',
-  CONTEO_MENSUAL_COMPLETADO = 'CONTEO_MENSUAL_COMPLETADO',
-  
-  // Conteo 100% anual
-  CONTEO_ANUAL_PROXIMO = 'CONTEO_ANUAL_PROXIMO',
-  CONTEO_ANUAL_VENCIDO = 'CONTEO_ANUAL_VENCIDO',
-  CONTEO_ANUAL_COMPLETADO = 'CONTEO_ANUAL_COMPLETADO',
-  
-  // General
   GENERAL = 'GENERAL',
 }
 

@@ -59,13 +59,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     const getToastConfig = (type: NotificationType) => {
       switch (type) {
         case NotificationType.CONTEO_MENSUAL_VENCIDO:
-        case NotificationType.CONTEO_ANUAL_VENCIDO:
           return { type: "error" as const };
-        case NotificationType.CONTEO_MENSUAL_COMPLETADO:
-        case NotificationType.CONTEO_ANUAL_COMPLETADO:
-          return { type: "success" as const };
         case NotificationType.CONTEO_MENSUAL_PROXIMO:
-        case NotificationType.CONTEO_ANUAL_PROXIMO:
           return { type: "info" as const };
         default:
           return { type: "info" as const };
@@ -78,11 +73,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       toast.error(notification.title, {
         description: notification.message,
         duration: 8000,
-      });
-    } else if (config.type === "success") {
-      toast.success(notification.title, {
-        description: notification.message,
-        duration: 5000,
       });
     } else {
       toast.info(notification.title, {
@@ -114,8 +104,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         window.focus();
         browserNotification.close();
       };
-    } catch (error) {
-      console.error("Error mostrando notificación del navegador:", error);
+    } catch {
+      
     }
   }, []);
 
@@ -157,16 +147,16 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const markAsRead = async (id: number) => {
     try {
       await markAsReadMutation({ variables: { id } });
-    } catch (error) {
-      console.error("Error al marcar como leída:", error);
+    } catch {
+      
     }
   };
 
   const markAllAsRead = async () => {
     try {
       await markAllAsReadMutation();
-    } catch (error) {
-      console.error("Error al marcar todas como leídas:", error);
+    } catch {
+      
     }
   };
 

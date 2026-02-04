@@ -5,8 +5,10 @@ export const GET_USERS = gql`
     users(active: $active) {
       id
       email
+      name
       role
       active
+      emailVerified
     }
   }
 `;

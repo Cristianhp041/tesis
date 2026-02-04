@@ -66,6 +66,14 @@ export class DocumentoEntity {
   @Column()
   subidoPor: string;
 
+  @Field({ nullable: true })
+  @Column({ type: 'boolean', default: false })
+  esTextoWeb: boolean;
+
+  @Field({ nullable: true })
+  @Column({ type: 'text', nullable: true })
+  contenido?: string;
+
   @Field()
   @CreateDateColumn()
   fechaSubida: Date;

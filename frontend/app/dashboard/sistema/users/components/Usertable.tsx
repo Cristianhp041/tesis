@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@apollo/client/react";
-import { Edit } from "lucide-react";
+import { Edit, Mail, MailCheck } from "lucide-react";
 
 import { GET_USERS } from "../graphql/getUsers";
 import { User } from "../types/user";
@@ -31,7 +31,8 @@ export default function UserTable() {
     return users.filter((user) => {
       if (
         filters.search &&
-        !user.email.toLowerCase().includes(filters.search.toLowerCase())
+        !user.email.toLowerCase().includes(filters.search.toLowerCase()) &&
+        !user.name.toLowerCase().includes(filters.search.toLowerCase())
       ) {
         return false;
       }
@@ -80,7 +81,6 @@ export default function UserTable() {
         />
       </div>
 
-
       {allFilteredUsers.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-6 text-sm text-gray-500 text-center">
           No se encontraron usuarios con los filtros aplicados
@@ -92,10 +92,16 @@ export default function UserTable() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Nombre
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Rol
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Email Verificado
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                     Estado
@@ -110,12 +116,30 @@ export default function UserTable() {
                 {paginatedUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-3 font-medium text-gray-900">
+                      {user.name}
+                    </td>
+
+                    <td className="px-4 py-3 text-gray-700">
                       {user.email}
                     </td>
 
                     <td className="px-4 py-3 text-gray-700">
                       {user.role}
                     </td>
+
+                    <td className="px-4 py-3 text-center">
+                <div className="flex justify-center">
+                  {user.emailVerified ? (
+                    <div title="Email verificado">
+                      <MailCheck size={18} className="text-green-600" />
+                    </div>
+                  ) : (
+                    <div title="Email no verificado">
+                      <Mail size={18} className="text-gray-400" />
+                    </div>
+                  )}
+                </div>
+              </td>
 
                     <td className="px-4 py-3 text-center">
                       <span

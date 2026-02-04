@@ -10,12 +10,13 @@ import { GET_USERS } from "../graphql/getUsers";
 import { UserRole } from "../types/user";
 
 interface Props {
-  onSuccess: () => void;
+  onSuccess: (email: string, name: string) => void;
   onCancel: () => void;
 }
 
 export default function CrearUserForm({ onSuccess, onCancel }: Props) {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>(UserRole.USER);
@@ -43,6 +44,11 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
       return;
     }
 
+    if (!name.trim()) {
+      toast.error("✗ El nombre es obligatorio");
+      return;
+    }
+
     if (!password.trim()) {
       toast.error("✗ La contraseña es obligatoria");
       return;
@@ -61,7 +67,7 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
     try {
       const result = await createUser({
         variables: {
-          data: { email, password, role },
+          data: { email, name, password, role },
         },
       });
 
@@ -89,8 +95,8 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
         return;
       }
 
-      toast.success("✓ Usuario creado correctamente");
-      onSuccess();
+      toast.success("✓ Usuario creado. Código de verificación enviado por email");
+      onSuccess(email, name);
     } catch (error) {
       let errorMessage = "";
 
@@ -117,13 +123,28 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
     <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
+          Nombre completo
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Juan Pérez"
+          required
+          autoComplete="off"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           Email
         </label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="correo@ejemplo.com"
+          placeholder="correo@gmail.com"
           required
           autoComplete="off"
           name="email-create-user-unique"

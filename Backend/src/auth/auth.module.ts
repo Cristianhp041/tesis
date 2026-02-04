@@ -4,10 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UserModule } from '../user/user.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
     forwardRef(() => UserModule),
+     forwardRef(() => EmailModule),
     JwtModule.register({
       secret: 'SECRET_KEY',
       signOptions: { expiresIn: '1d' },

@@ -10,17 +10,19 @@ import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly emailService: EmailService,
   ) {}
 
-  private removePassword(user: User) {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+  private removePassword(user: User): Omit<User, 'password' | 'verificationCode'> {
+    const { password, verificationCode, ...userWithoutSensitive } = user;
+    return userWithoutSensitive;
   }
 
   private async findOneRaw(id: number): Promise<User> {
@@ -31,7 +33,7 @@ export class UserService {
     return user;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const exists = await this.userRepository.findOne({
       where: { email: dto.email },
     });
@@ -40,26 +42,43 @@ export class UserService {
       throw new BadRequestException('Ya existe un usuario con ese email');
     }
 
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeExpiry = new Date();
+    verificationCodeExpiry.setHours(verificationCodeExpiry.getHours() + 24);
+
     try {
       const hashedPassword = await bcrypt.hash(dto.password, 10);
 
       const user = this.userRepository.create({
         ...dto,
         password: hashedPassword,
+        active: false,
+        emailVerified: false,
+        verificationCode,
+        verificationCodeExpiry,
       });
 
       const savedUser = await this.userRepository.save(user);
+
+      // Enviar email de verificación
+      await this.emailService.sendVerificationCode(
+        savedUser.email,
+        savedUser.name,
+        verificationCode,
+      );
+
       return this.removePassword(savedUser);
     } catch (error) {
-      if ((error as any).code === '23505') {
+      const err = error as { code?: string };
+      if (err.code === '23505') {
         throw new BadRequestException('Ya existe un usuario con ese email');
       }
       throw error;
     }
   }
 
-  async findAll(active: 'true' | 'false' | 'all' = 'true') {
-    let where: any = {};
+  async findAll(active: 'true' | 'false' | 'all' = 'true'): Promise<Omit<User, 'password' | 'verificationCode'>[]> {
+    const where: Record<string, boolean> = {};
 
     if (active === 'true') where.active = true;
     if (active === 'false') where.active = false;
@@ -68,17 +87,17 @@ export class UserService {
     return users.map((u) => this.removePassword(u));
   }
 
-  async findProfile(id: number) {
+  async findProfile(id: number): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const user = await this.findOneRaw(id);
     return this.removePassword(user);
   }
 
-  async findOne(id: number) {
+  async findOne(id: number): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const user = await this.findOneRaw(id);
     return this.removePassword(user);
   }
 
-  async update(id: number, dto: UpdateUserDto) {
+  async update(id: number, dto: UpdateUserDto): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const user = await this.findOneRaw(id);
 
     if (dto.email && dto.email !== user.email) {
@@ -108,15 +127,15 @@ export class UserService {
       
       return this.removePassword(refreshedUser);
     } catch (error) {
-
-      if ((error as any).code === '23505') {
+      const err = error as { code?: string };
+      if (err.code === '23505') {
         throw new BadRequestException('Ya existe un usuario con ese email');
       }
       throw error;
     }
   }
 
-  async deactivate(id: number) {
+  async deactivate(id: number): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const user = await this.findOneRaw(id);
     
     user.active = false;
@@ -131,7 +150,7 @@ export class UserService {
     return this.removePassword(refreshedUser);
   }
 
-  async activate(id: number) {
+  async activate(id: number): Promise<Omit<User, 'password' | 'verificationCode'>> {
     const user = await this.findOneRaw(id);
     
     user.active = true;
@@ -148,5 +167,9 @@ export class UserService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
+  }
+
+  async updateVerification(user: User): Promise<void> {
+    await this.userRepository.save(user);
   }
 }

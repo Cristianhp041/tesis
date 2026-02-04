@@ -10,6 +10,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { DocumentsService } from './documento.service';
+import { DocumentType } from './entities/documento.entity';
 import * as fs from 'fs';
 
 @Controller('documents')
@@ -59,7 +60,7 @@ export class DocumentsController {
   )
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File, 
-    @Body() body: any,
+    @Body() body: { input: string },
   ) {
     if (!file) {
       throw new BadRequestException('No se ha subido ningún archivo');
@@ -68,11 +69,15 @@ export class DocumentsController {
     const input = JSON.parse(body.input);
 
     return this.documentsService.createFromUpload({
-      ...input,
+      nombre: input.nombre,
       nombreOriginal: file.originalname,
+      tipo: input.tipo as DocumentType,
       url: file.path,
       tamano: file.size,
       extension: extname(file.originalname),
+      mes: input.mes,
+      evento: input.evento,
+      subidoPor: input.subidoPor,
     });
   }
 }

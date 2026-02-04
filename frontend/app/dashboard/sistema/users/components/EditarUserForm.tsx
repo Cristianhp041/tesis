@@ -16,18 +16,21 @@ interface Props {
 
 type UpdateUserInput = {
   email?: string;
+  name?: string;
   role?: UserRole;
   active?: boolean;
 };
 
 export default function EditarUserForm({ user, onSuccess, onCancel }: Props) {
   const [email, setEmail] = useState(user.email);
+  const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserRole>(user.role);
   const [active, setActive] = useState(user.active);
 
   const original = useMemo(
     () => ({
       email: user.email,
+      name: user.name,
       role: user.role,
       active: user.active,
     }),
@@ -46,6 +49,7 @@ export default function EditarUserForm({ user, onSuccess, onCancel }: Props) {
 
   const hayCambios =
     email !== original.email ||
+    name !== original.name ||
     role !== original.role ||
     active !== original.active;
 
@@ -62,9 +66,15 @@ export default function EditarUserForm({ user, onSuccess, onCancel }: Props) {
       return;
     }
 
+    if (!name.trim()) {
+      toast.error("✗ El nombre es obligatorio");
+      return;
+    }
+
     const data: UpdateUserInput = {};
 
     if (email !== original.email) data.email = email;
+    if (name !== original.name) data.name = name;
     if (role !== original.role) data.role = role;
     if (active !== original.active) data.active = active;
 
@@ -126,6 +136,19 @@ export default function EditarUserForm({ user, onSuccess, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Nombre completo
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        />
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Email

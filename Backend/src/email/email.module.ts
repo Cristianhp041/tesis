@@ -8,12 +8,13 @@ import { User } from '../user/entities/user.entity';
 import { Notification } from '../notificacion/entities/notificacion.entity';
 import { NotificationService } from '../notificacion/notificacion.service';
 import { AuthModule } from '../auth/auth.module'; // 🆕 IMPORTAR
+import { forwardRef } from '@nestjs/common';
 
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([User, Notification]),
-    AuthModule, // 🆕 AGREGAR AuthModule
+     forwardRef(() => AuthModule), // 🆕 AGREGAR AuthModule
   ],
   controllers: [EmailTestController],
   providers: [EmailService, NotificationService],

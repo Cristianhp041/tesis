@@ -1,9 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { DocumentoEntity, DocumentStats } from './entities/documento.entity';
+import { DocumentoEntity, DocumentStats, DocumentType } from './entities/documento.entity';
 import { FilterDocumentsInput } from './dto/create.dto';
+import { CreateTextDocumentInput } from './dto/createtexdocumento.dto';
+import { UpdateTextDocumentInput } from './dto/updatetexdocumento.dto';
 import * as fs from 'fs';
+
+interface UploadDocumentData {
+  nombre: string;
+  nombreOriginal: string;
+  tipo: DocumentType;
+  url: string;
+  tamano: number;
+  extension: string;
+  mes?: string;
+  evento?: string;
+  subidoPor: string;
+}
 
 @Injectable()
 export class DocumentsService {
@@ -12,13 +26,64 @@ export class DocumentsService {
     private readonly documentRepository: Repository<DocumentoEntity>,
   ) {}
 
-  createFromUpload(data: any) {
-    const document = this.documentRepository.create(data);
+  createFromUpload(data: UploadDocumentData) {
+    const document = this.documentRepository.create({
+      nombre: data.nombre,
+      nombreOriginal: data.nombreOriginal,
+      tipo: data.tipo,
+      url: data.url,
+      tamano: data.tamano,
+      extension: data.extension,
+      mes: data.mes,
+      evento: data.evento,
+      subidoPor: data.subidoPor,
+      esTextoWeb: false,
+    });
+    return this.documentRepository.save(document);
+  }
+
+  async createTextDocument(input: CreateTextDocumentInput) {
+    const document = this.documentRepository.create({
+      nombre: input.nombre,
+      nombreOriginal: `${input.nombre}.txt`,
+      tipo: input.tipo,
+      url: '',
+      tamano: Buffer.byteLength(input.contenido, 'utf8'),
+      extension: '.txt',
+      mes: input.mes,
+      evento: input.evento,
+      subidoPor: input.subidoPor,
+      esTextoWeb: true,
+      contenido: input.contenido,
+    });
+
+    return this.documentRepository.save(document);
+  }
+
+  async updateTextDocument(id: string, input: UpdateTextDocumentInput) {
+    const document = await this.findOne(id);
+
+    if (!document.esTextoWeb) {
+      throw new NotFoundException('Solo se pueden editar documentos de texto creados en la web');
+    }
+
+    document.nombre = input.nombre;
+    document.contenido = input.contenido;
+    document.tamano = Buffer.byteLength(input.contenido, 'utf8');
+    
+    if (input.mes !== undefined) {
+      document.mes = input.mes;
+    }
+    
+    if (input.evento !== undefined) {
+      document.evento = input.evento;
+    }
+
     return this.documentRepository.save(document);
   }
 
   findAll(filters: FilterDocumentsInput) {
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (filters.tipo) {
       query.tipo = filters.tipo;
@@ -58,7 +123,7 @@ export class DocumentsService {
   async remove(id: string) {
     const document = await this.findOne(id);
 
-    if (fs.existsSync(document.url)) {
+    if (!document.esTextoWeb && fs.existsSync(document.url)) {
       fs.unlinkSync(document.url);
     }
 
@@ -69,11 +134,11 @@ export class DocumentsService {
 
   async getStats() {
     const mensuales = await this.documentRepository.count({ 
-      where: { tipo: 'mensual' as any } 
+      where: { tipo: DocumentType.MENSUAL } 
     });
     
     const especificos = await this.documentRepository.count({ 
-      where: { tipo: 'especifico' as any } 
+      where: { tipo: DocumentType.ESPECIFICO } 
     });
 
     const totalSizeResult = await this.documentRepository

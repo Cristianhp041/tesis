@@ -1,24 +1,30 @@
-import { FileText, Download, Trash2 } from "lucide-react";
+import { FileText, Download, Trash2, Eye, Edit } from "lucide-react";
 import { Document } from "../types/document.types";
 import { formatFileSize, formatDate } from "../utils/formatters";
 
 interface DocumentCardProps {
   document: Document;
+  onView: (doc: Document) => void;
   onDownload: (doc: Document) => void;
+  onEdit?: (doc: Document) => void;
   onDelete: (id: string) => void;
 }
 
 export default function DocumentCard({ 
   document, 
+  onView,
   onDownload, 
+  onEdit,
   onDelete,
 }: DocumentCardProps) {
+  const canEdit = document.esTextoWeb;
+
   return (
     <div className="p-4 hover:bg-gray-50 transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4 flex-1">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <FileText className="text-blue-600" size={24} />
+          <div className={`w-12 h-12 ${document.esTextoWeb ? 'bg-green-100' : 'bg-blue-100'} rounded-lg flex items-center justify-center flex-shrink-0`}>
+            <FileText className={document.esTextoWeb ? 'text-green-600' : 'text-blue-600'} size={24} />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -26,6 +32,11 @@ export default function DocumentCard({
               <h3 className="font-semibold text-gray-900">
                 {document.nombre}
               </h3>
+              {document.esTextoWeb && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
+                  Texto Web
+                </span>
+              )}
               {document.evento && (
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full whitespace-nowrap">
                   {document.evento}
@@ -46,6 +57,22 @@ export default function DocumentCard({
         </div>
 
         <div className="flex gap-2 ml-4">
+          <button
+            onClick={() => onView(document)}
+            className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+            title="Ver"
+          >
+            <Eye size={18} />
+          </button>
+          {canEdit && onEdit && (
+            <button
+              onClick={() => onEdit(document)}
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+              title="Editar"
+            >
+              <Edit size={18} />
+            </button>
+          )}
           <button
             onClick={() => onDownload(document)}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"

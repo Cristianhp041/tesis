@@ -11,6 +11,8 @@ export interface Document {
   evento?: string;
   subidoPor: string;
   fechaSubida: string;
+  esTextoWeb?: boolean;
+  contenido?: string;
 }
 
 export interface DocumentFormData {
@@ -43,4 +45,33 @@ export interface DeleteDocumentResponse {
 
 export interface DeleteDocumentVariables {
   id: string;
+}
+
+export interface CreateTextDocumentResponse {
+  createTextDocument: Document;
+}
+
+export interface CreateTextDocumentVariables {
+  input: {
+    nombre: string;
+    tipo: DocumentType;
+    contenido: string;
+    mes?: string;
+    evento?: string;
+    subidoPor: string;
+  };
+}
+
+export interface UpdateTextDocumentResponse {
+  updateTextDocument: Document;
+}
+
+export interface UpdateTextDocumentVariables {
+  id: string;
+  input: {
+    nombre: string;
+    contenido: string;
+    mes?: string;
+    evento?: string;
+  };
 }

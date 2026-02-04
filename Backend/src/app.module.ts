@@ -40,7 +40,7 @@ import { EmailModule } from './email/email.module'; // 🆕 IMPORTAR (si no lo t
       port: 5432,
       username: 'postgres',
       password: 'Admin123',
-      database: 'tesis_bd',
+      database: 'tesis_bd2',
       autoLoadEntities: true,
       synchronize: true,
       logging: false,

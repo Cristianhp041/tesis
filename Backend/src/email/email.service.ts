@@ -24,7 +24,6 @@ export class EmailService {
   private initializeTransporter() {
     const emailEnabled = this.configService.get<boolean>('EMAIL_ENABLED', false);
 
-    // 🆕 LOG TEMPORAL PARA DEBUG
     console.log('📧 EMAIL CONFIG:', {
       enabled: emailEnabled,
       service: this.configService.get<string>('EMAIL_SERVICE'),
@@ -42,22 +41,26 @@ export class EmailService {
     const emailService = this.configService.get<string>('EMAIL_SERVICE');
     
     if (emailService === 'gmail') {
-      // Configuración para Gmail
+      // Configuración para Gmail con SSL (puerto 465)
       this.transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // SSL
         auth: {
           user: this.configService.get<string>('EMAIL_USER'),
           pass: this.configService.get<string>('EMAIL_PASSWORD'),
         },
+        tls: {
+          rejectUnauthorized: false, // Solo para desarrollo
+        },
       });
       
-      // 🆕 LOG PARA CONFIRMAR CREACIÓN
-      console.log('✅ Transporter de Gmail creado');
+      console.log('✅ Transporter de Gmail creado (SSL - Puerto 465)');
     } else {
-      // Configuración SMTP genérica
+      // Configuración SMTP genérica (Mailtrap, etc.)
       this.transporter = nodemailer.createTransport({
         host: this.configService.get<string>('EMAIL_HOST'),
-        port: this.configService.get<number>('EMAIL_PORT', 587),
+        port: this.configService.get<number>('EMAIL_PORT', 2525),
         secure: this.configService.get<boolean>('EMAIL_SECURE', false),
         auth: {
           user: this.configService.get<string>('EMAIL_USER'),
@@ -65,39 +68,34 @@ export class EmailService {
         },
       });
       
-      // 🆕 LOG PARA CONFIRMAR CREACIÓN
       console.log('✅ Transporter SMTP creado');
     }
 
     this.logger.log('Transporter de email inicializado correctamente');
   }
 
-  /**
-   * Verificar conexión del transporter
-   */
   async verifyConnection(): Promise<boolean> {
-    console.log('🔍 Verificando conexión...'); // 🆕
+    console.log('🔍 Verificando conexión...');
 
     if (!this.transporter) {
-      console.log('❌ Transporter no existe'); // 🆕
+      console.log('❌ Transporter no existe');
       this.logger.warn('Transporter no inicializado');
       return false;
     }
 
     try {
-      console.log('⏳ Intentando verificar con Gmail...'); // 🆕
+      console.log('⏳ Intentando verificar conexión SMTP...');
       await this.transporter.verify();
-      console.log('✅ Conexión verificada exitosamente'); // 🆕
+      console.log('✅ Conexión verificada exitosamente');
       this.logger.log('Conexión de email verificada exitosamente');
       return true;
     } catch (error) {
-      console.log('❌ Error en verificación:', error.message); // 🆕
+      console.log('❌ Error en verificación:', error.message);
       this.logger.error('Error verificando conexión de email:', error);
       return false;
     }
   }
 
-  // ... resto del código sin cambios
   async sendEmail(options: EmailOptions): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn('Transporter no inicializado, email no enviado');
@@ -399,6 +397,104 @@ export class EmailService {
           <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-ES')}</p>
         </div>
       `,
+    });
+  }
+
+  async sendVerificationCode(to: string, userName: string, code: string): Promise<boolean> {
+    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .code-box { background: #f0f7ff; border: 2px dashed #3b82f6; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px; }
+    .code { font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 5px; font-family: monospace; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">🔐 Verifica tu Email</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <p>Se ha creado una cuenta en <strong>${appName}</strong> con este correo electrónico.</p>
+    
+    <p>Para activar tu cuenta y confirmar que este email es correcto, usa el siguiente código de verificación:</p>
+    
+    <div class="code-box">
+      <div class="code">${code}</div>
+    </div>
+    
+    <p><strong>Importante:</strong> Este código es válido por <strong>24 horas</strong>.</p>
+    
+    <p>Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    
+    return this.sendEmail({
+      to,
+      subject: `🔐 Código de Verificación - ${appName}`,
+      html,
+    });
+  }
+
+  async sendWelcomeEmail(to: string, userName: string): Promise<boolean> {
+    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
+    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .button { display: inline-block; background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">🎉 ¡Bienvenido a ${appName}!</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <p>Tu cuenta ha sido verificada exitosamente. Ya puedes acceder al sistema con tu email y contraseña.</p>
+    
+    <div style="text-align: center;">
+      <a href="${appUrl}/login" class="button">Iniciar Sesión</a>
+    </div>
+    
+    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    
+    return this.sendEmail({
+      to,
+      subject: `¡Bienvenido a ${appName}!`,
+      html,
     });
   }
 }

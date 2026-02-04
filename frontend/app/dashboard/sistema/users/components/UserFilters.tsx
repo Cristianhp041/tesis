@@ -34,12 +34,11 @@ export default function UserFilters({ value, onChange }: Props) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-600">Buscar</label>
           <input
             type="text"
-            placeholder="Email del usuario"
+            placeholder="Nombre o email"
             value={value.search ?? ""}
             onChange={(e) => onChange({ search: e.target.value })}
             className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"

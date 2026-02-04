@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Calendar, Upload } from "lucide-react";
+import { Calendar, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Document, 
@@ -10,18 +10,31 @@ import {
   GetDocumentsResponse,
   GetDocumentsVariables,
   DeleteDocumentResponse,
-  DeleteDocumentVariables
+  DeleteDocumentVariables,
+  CreateTextDocumentResponse,
+  CreateTextDocumentVariables,
+  UpdateTextDocumentResponse,
+  UpdateTextDocumentVariables
 } from "../types/document.types";
-import { GET_DOCUMENTS, DELETE_DOCUMENT } from "../graphql/documents.queries";
+import { 
+  GET_DOCUMENTS, 
+  DELETE_DOCUMENT,
+  CREATE_TEXT_DOCUMENT,
+  UPDATE_TEXT_DOCUMENT
+} from "../graphql/documents.queries";
 import { formatMonthYear, getFilenameFromUrl } from "../utils/formatters";
 import DocumentCard from "../components/DocumentCard";
 import DocumentFilters from "../components/DocumentFilters";
 import EmptyState from "../components/EmptyState";
 import UploadModalMensual from "../components/UploadModalMensual";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import CreateTextDocumentModal, { TextDocumentData } from "../components/Createtextdocumentmodal";
+import ViewDocumentModal from "../components/Viewdocumentmodal";
+import EditTextDocumentModal, { EditTextDocumentData } from "../components/Edittextdocumentmodal";
 
 export default function DocumentosMensualesPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCreateTextModal, setShowCreateTextModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; documentId: string; documentName: string }>({
@@ -30,6 +43,8 @@ export default function DocumentosMensualesPage() {
     documentName: "",
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewDocument, setViewDocument] = useState<Document | null>(null);
+  const [editDocument, setEditDocument] = useState<Document | null>(null);
 
   const { data, loading, refetch } = useQuery<GetDocumentsResponse, GetDocumentsVariables>(
     GET_DOCUMENTS,
@@ -46,6 +61,14 @@ export default function DocumentosMensualesPage() {
 
   const [deleteDocument] = useMutation<DeleteDocumentResponse, DeleteDocumentVariables>(
     DELETE_DOCUMENT
+  );
+
+  const [createTextDocument] = useMutation<CreateTextDocumentResponse, CreateTextDocumentVariables>(
+    CREATE_TEXT_DOCUMENT
+  );
+
+  const [updateTextDocument] = useMutation<UpdateTextDocumentResponse, UpdateTextDocumentVariables>(
+    UPDATE_TEXT_DOCUMENT
   );
 
   const documents: Document[] = data?.documents || [];
@@ -75,29 +98,85 @@ export default function DocumentosMensualesPage() {
     }
   };
 
+  const handleCreateText = async (data: TextDocumentData) => {
+    try {
+      await createTextDocument({
+        variables: {
+          input: {
+            nombre: data.nombre,
+            tipo: 'MENSUAL',
+            contenido: data.contenido,
+            mes: data.mes,
+            subidoPor: data.subidoPor,
+          }
+        }
+      });
+
+      toast.success('✓ Documento creado correctamente');
+      refetch();
+    } catch {
+      toast.error('✗ Error al crear el documento');
+    }
+  };
+
+  const handleEditText = async (id: string, data: EditTextDocumentData) => {
+    try {
+      await updateTextDocument({
+        variables: {
+          id,
+          input: {
+            nombre: data.nombre,
+            contenido: data.contenido,
+            mes: data.mes,
+          }
+        }
+      });
+
+      toast.success('✓ Documento actualizado correctamente');
+      refetch();
+    } catch {
+      toast.error('✗ Error al actualizar el documento');
+    }
+  };
+
   const handleDownload = async (doc: Document) => {
     try {
-      const filename = getFilenameFromUrl(doc.url);
-      const url = `http://localhost:3001/uploads/documents/${filename}`;
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (doc.esTextoWeb) {
+        const blob = new Blob([doc.contenido || ''], { type: 'text/plain' });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const downloadName = `${doc.nombre}.txt`;
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = downloadName;
+        document.body.appendChild(link);
+        link.click();
+        
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      } else {
+        const filename = getFilenameFromUrl(doc.url);
+        const url = `http://localhost:3001/uploads/documents/${filename}`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const downloadName = `${doc.nombre}${doc.extension}`;
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = downloadName;
+        document.body.appendChild(link);
+        link.click();
+        
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
       }
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const downloadName = `${doc.nombre}${doc.extension}`;
-      
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = downloadName;
-      document.body.appendChild(link);
-      link.click();
-      
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
       
       toast.success('✓ Documento descargado');
     } catch {
@@ -146,13 +225,22 @@ export default function DocumentosMensualesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg transition"
-        >
-          <Upload size={20} />
-          Subir Documento
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowCreateTextModal(true)}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg transition"
+          >
+            <FileText size={20} />
+            Crear Texto
+          </button>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg transition"
+          >
+            <Upload size={20} />
+            Subir Archivo
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -192,7 +280,9 @@ export default function DocumentosMensualesPage() {
                     <DocumentCard
                       key={doc.id}
                       document={doc}
+                      onView={setViewDocument}
                       onDownload={handleDownload}
+                      onEdit={doc.esTextoWeb ? setEditDocument : undefined}
                       onDelete={(id) => handleDelete(id, doc.nombre)}
                     />
                   ))}
@@ -206,6 +296,26 @@ export default function DocumentosMensualesPage() {
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
         onUpload={handleUpload}
+      />
+
+      <CreateTextDocumentModal
+        isOpen={showCreateTextModal}
+        onClose={() => setShowCreateTextModal(false)}
+        onSave={handleCreateText}
+        documentType="MENSUAL"
+      />
+
+      <ViewDocumentModal
+        isOpen={!!viewDocument}
+        onClose={() => setViewDocument(null)}
+        document={viewDocument}
+      />
+
+      <EditTextDocumentModal
+        isOpen={!!editDocument}
+        onClose={() => setEditDocument(null)}
+        onSave={handleEditText}
+        document={editDocument}
       />
 
       <ConfirmDeleteModal

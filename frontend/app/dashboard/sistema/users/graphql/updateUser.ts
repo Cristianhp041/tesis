@@ -5,8 +5,10 @@ export const UPDATE_USER = gql`
     updateUser(id: $id, data: $data) {
       id
       email
+      name
       role
       active
+      emailVerified
     }
   }
 `;

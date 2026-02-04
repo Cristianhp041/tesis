@@ -7,7 +7,7 @@ export async function seedAdmin(dataSource: DataSource) {
   const repo = dataSource.getRepository(User);
 
   const exists = await repo.findOne({
-    where: { email: 'admin@vertex.cu' },
+    where: { email: 'chrissclash041@gmail.com' },
   });
 
   if (exists) {
@@ -17,10 +17,12 @@ export async function seedAdmin(dataSource: DataSource) {
   const password = await bcrypt.hash('123456', 10);
 
   const admin = repo.create({
-    email: 'admin@vertex.cu',
+    email: 'chrissclash041@gmail.com',
     password,
+    name: 'Administrador',
     role: UserRole.ADMIN, 
     active: true,
+    emailVerified: true,
   });
 
   await repo.save(admin);

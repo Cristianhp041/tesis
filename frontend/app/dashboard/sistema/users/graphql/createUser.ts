@@ -5,8 +5,10 @@ export const CREATE_USER = gql`
     createUser(data: $data) {
       id
       email
+      name
       role
       active
+      emailVerified
     }
   }
 `;

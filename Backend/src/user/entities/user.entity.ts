@@ -21,6 +21,10 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Field()
+  @Column()
+  name: string;
+
   @Column()
   password: string;
 
@@ -33,6 +37,16 @@ export class User {
   role: UserRole;
 
   @Field()
-  @Column({ default: true })
+  @Column({ default: false })
   active: boolean;
+
+  @Field()
+  @Column({ default: false })
+  emailVerified: boolean;
+
+  @Column({ nullable: true })
+  verificationCode: string;
+
+  @Column({ nullable: true })
+  verificationCodeExpiry: Date;
 }

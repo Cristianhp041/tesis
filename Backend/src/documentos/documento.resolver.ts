@@ -2,6 +2,8 @@ import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { DocumentoEntity, DocumentStats, DeleteDocumentResponse } from './entities/documento.entity';
 import { DocumentsService } from './documento.service';
 import { FilterDocumentsInput } from './dto/create.dto';
+import { CreateTextDocumentInput } from './dto/createtexdocumento.dto';
+import { UpdateTextDocumentInput } from './dto/updatetexdocumento.dto';
 
 @Resolver(() => DocumentoEntity)
 export class DocumentsResolver {
@@ -17,6 +19,19 @@ export class DocumentsResolver {
   @Query(() => DocumentoEntity)
   document(@Args('id') id: string) {
     return this.documentsService.findOne(id);
+  }
+
+  @Mutation(() => DocumentoEntity)
+  createTextDocument(@Args('input') input: CreateTextDocumentInput) {
+    return this.documentsService.createTextDocument(input);
+  }
+
+  @Mutation(() => DocumentoEntity)
+  updateTextDocument(
+    @Args('id') id: string,
+    @Args('input') input: UpdateTextDocumentInput
+  ) {
+    return this.documentsService.updateTextDocument(id, input);
   }
 
   @Mutation(() => DeleteDocumentResponse)

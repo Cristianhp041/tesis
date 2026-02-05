@@ -3,6 +3,7 @@
 export interface UserFilterState {
   search: string;
   activo: boolean | undefined;
+  approvalStatus: 'all' | 'pending' | 'approved' | 'rejected';
 }
 
 interface Props {
@@ -15,6 +16,7 @@ export default function UserFilters({ value, onChange }: Props) {
     onChange({
       search: "",
       activo: undefined,
+      approvalStatus: "all",
     });
   };
 
@@ -33,7 +35,7 @@ export default function UserFilters({ value, onChange }: Props) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-600">Buscar</label>
           <input
@@ -46,7 +48,7 @@ export default function UserFilters({ value, onChange }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Estado</label>
+          <label className="text-xs text-gray-600">Estado Activo</label>
           <select
             className="border rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
             value={
@@ -69,6 +71,24 @@ export default function UserFilters({ value, onChange }: Props) {
             <option value="">Todos</option>
             <option value="activo">Activos</option>
             <option value="inactivo">Inactivos</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-600">Estado Aprobación</label>
+          <select
+            className="border rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500"
+            value={value.approvalStatus}
+            onChange={(e) => {
+              onChange({ 
+                approvalStatus: e.target.value as 'all' | 'pending' | 'approved' | 'rejected'
+              });
+            }}
+          >
+            <option value="all">Todos</option>
+            <option value="pending">Pendientes</option>
+            <option value="approved">Aprobados</option>
+            <option value="rejected">Rechazados</option>
           </select>
         </div>
       </div>

@@ -1,3 +1,4 @@
+// src/app/(app)/configuracion/usuarios/components/CrearUserForm.tsx - CORREGIDO
 "use client";
 
 import { useState } from "react";
@@ -31,7 +32,7 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
         variables: { active: "all" } 
       }
     ],
-    awaitRefetchQueries: true,
+    awaitRefetchQueries: true, // ✅ Esperar a que termine el refetch
   });
 
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
@@ -95,6 +96,7 @@ export default function CrearUserForm({ onSuccess, onCancel }: Props) {
         return;
       }
 
+      // ✅ El refetch ya terminó aquí gracias a awaitRefetchQueries
       toast.success("✓ Usuario creado. Código de verificación enviado por email");
       onSuccess(email, name);
     } catch (error) {

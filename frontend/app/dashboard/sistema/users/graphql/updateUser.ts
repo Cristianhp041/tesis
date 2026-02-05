@@ -9,6 +9,7 @@ export const UPDATE_USER = gql`
       role
       active
       emailVerified
+      approvalStatus
     }
   }
 `;

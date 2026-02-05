@@ -18,7 +18,7 @@ export class UserResolver {
   
   @Query(() => User)
   @UseGuards(JwtAuthGuard)
-  me(@Context() context: any) {
+  me(@Context() context: { req: { user: { sub: number } } }) {
     const userId = context.req.user.sub;
     return this.userService.findProfile(userId);
   }
@@ -57,5 +57,20 @@ export class UserResolver {
   @Roles(UserRole.ADMIN)
   deactivateUser(@Args('id', { type: () => Int }) id: number) {
     return this.userService.deactivate(id);
+  }
+
+  @Mutation(() => User)
+  @Roles(UserRole.ADMIN)
+  approveUser(@Args('userId', { type: () => Int }) userId: number) {
+    return this.userService.approveUser(userId);
+  }
+
+  @Mutation(() => User)
+  @Roles(UserRole.ADMIN)
+  rejectUser(
+    @Args('userId', { type: () => Int }) userId: number,
+    @Args('reason', { nullable: true }) reason?: string,
+  ) {
+    return this.userService.rejectUser(userId, reason);
   }
 }

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets } from 'typeorm';
+import * as ExcelJS from 'exceljs'; // ✅ CAMBIO 1: Importación estática al inicio del archivo
 
 import { Trabajador } from './entities/trabajador.entity';
 import { CreateTrabajadorDto } from './dto/create-trabajador.dto';
@@ -286,7 +287,7 @@ export class TrabajadorService {
     };
 
     try {
-      const ExcelJS = await import('exceljs');
+      // ✅ CAMBIO 2: Eliminar la importación dinámica, usar la estática del inicio
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(buffer as any);
       

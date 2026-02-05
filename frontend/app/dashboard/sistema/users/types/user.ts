@@ -1,6 +1,12 @@
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER',
+  USER = "USER",
+  ADMIN = "ADMIN",
+}
+
+export enum ApprovalStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
 }
 
 export interface User {
@@ -10,13 +16,5 @@ export interface User {
   role: UserRole;
   active: boolean;
   emailVerified: boolean;
-}
-
-export interface GetMeResponse {
-  me: {
-    id: number;
-    email: string;
-    name: string;
-    role: UserRole;
-  };
+  approvalStatus: ApprovalStatus;
 }

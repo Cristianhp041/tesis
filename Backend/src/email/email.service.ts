@@ -1,4 +1,3 @@
-// src/email/email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -22,75 +21,54 @@ export class EmailService {
   }
 
   private initializeTransporter() {
-    const emailEnabled = this.configService.get<boolean>('EMAIL_ENABLED', false);
+    const emailEnabled = this.configService.get<string>('EMAIL_ENABLED');
+    const emailService = this.configService.get<string>('EMAIL_SERVICE');
+    const emailUser = this.configService.get<string>('EMAIL_USER');
+    const emailPassword = this.configService.get<string>('EMAIL_PASSWORD');
 
-    console.log('📧 EMAIL CONFIG:', {
-      enabled: emailEnabled,
-      service: this.configService.get<string>('EMAIL_SERVICE'),
-      user: this.configService.get<string>('EMAIL_USER'),
-      from: this.configService.get<string>('EMAIL_FROM'),
-      passwordLength: this.configService.get<string>('EMAIL_PASSWORD')?.length,
-      hasPassword: !!this.configService.get<string>('EMAIL_PASSWORD'),
-    });
-
-    if (!emailEnabled) {
+    if (emailEnabled !== 'true') {
       this.logger.warn('Email está deshabilitado en la configuración');
       return;
     }
 
-    const emailService = this.configService.get<string>('EMAIL_SERVICE');
-    
-    if (emailService === 'gmail') {
-      // Configuración para Gmail con SSL (puerto 465)
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // SSL
-        auth: {
-          user: this.configService.get<string>('EMAIL_USER'),
-          pass: this.configService.get<string>('EMAIL_PASSWORD'),
-        },
-        tls: {
-          rejectUnauthorized: false, // Solo para desarrollo
-        },
-      });
-      
-      console.log('✅ Transporter de Gmail creado (SSL - Puerto 465)');
-    } else {
-      // Configuración SMTP genérica (Mailtrap, etc.)
-      this.transporter = nodemailer.createTransport({
-        host: this.configService.get<string>('EMAIL_HOST'),
-        port: this.configService.get<number>('EMAIL_PORT', 2525),
-        secure: this.configService.get<boolean>('EMAIL_SECURE', false),
-        auth: {
-          user: this.configService.get<string>('EMAIL_USER'),
-          pass: this.configService.get<string>('EMAIL_PASSWORD'),
-        },
-      });
-      
-      console.log('✅ Transporter SMTP creado');
-    }
+    try {
+      if (emailService === 'gmail') {
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: emailUser,
+            pass: emailPassword,
+          },
+        });
+      } else {
+        this.transporter = nodemailer.createTransport({
+          host: this.configService.get<string>('EMAIL_HOST'),
+          port: this.configService.get<number>('EMAIL_PORT', 587),
+          secure: this.configService.get<boolean>('EMAIL_SECURE', false),
+          auth: {
+            user: emailUser,
+            pass: emailPassword,
+          },
+        });
+      }
 
-    this.logger.log('Transporter de email inicializado correctamente');
+      this.logger.log('Transporter de email inicializado correctamente');
+    } catch (error) {
+      this.logger.error('Error inicializando transporter:', error);
+    }
   }
 
   async verifyConnection(): Promise<boolean> {
-    console.log('🔍 Verificando conexión...');
-
     if (!this.transporter) {
-      console.log('❌ Transporter no existe');
       this.logger.warn('Transporter no inicializado');
       return false;
     }
 
     try {
-      console.log('⏳ Intentando verificar conexión SMTP...');
       await this.transporter.verify();
-      console.log('✅ Conexión verificada exitosamente');
       this.logger.log('Conexión de email verificada exitosamente');
       return true;
     } catch (error) {
-      console.log('❌ Error en verificación:', error.message);
       this.logger.error('Error verificando conexión de email:', error);
       return false;
     }
@@ -112,12 +90,227 @@ export class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
+      
       this.logger.log(`Email enviado exitosamente a ${options.to} - ID: ${info.messageId}`);
       return true;
     } catch (error) {
       this.logger.error(`Error enviando email a ${options.to}:`, error);
       return false;
     }
+  }
+
+  async sendVerificationCode(to: string, userName: string, code: string): Promise<boolean> {
+    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .code-box { background: #f0f7ff; border: 2px dashed #3b82f6; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px; }
+    .code { font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 5px; font-family: monospace; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">🔐 Verifica tu Email</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <p>Gracias por registrarte en <strong>${appName}</strong>.</p>
+    
+    <p>Para completar tu registro y verificar tu email, usa el siguiente código:</p>
+    
+    <div class="code-box">
+      <div class="code">${code}</div>
+    </div>
+    
+    <p><strong>Importante:</strong> Este código es válido por <strong>24 horas</strong>.</p>
+    
+    <p>Una vez verificado tu email, un administrador revisará y aprobará tu cuenta.</p>
+    
+    <p>Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    
+    return await this.sendEmail({
+      to,
+      subject: `🔐 Código de Verificación - ${appName}`,
+      html,
+    });
+  }
+
+  async sendApprovalEmail(to: string, userName: string, approved: boolean, reason?: string): Promise<boolean> {
+    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
+    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
+    
+    const html = approved
+      ? `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .success-box { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; margin: 20px 0; border-radius: 4px; }
+    .button { display: inline-block; background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">✅ ¡Cuenta Aprobada!</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <div class="success-box">
+      <p style="margin: 0; color: #166534; font-weight: 600;">
+        ¡Excelentes noticias! Tu cuenta ha sido aprobada por el administrador.
+      </p>
+    </div>
+    
+    <p>Ya puedes iniciar sesión en el sistema con tu email y contraseña.</p>
+    
+    <div style="text-align: center;">
+      <a href="${appUrl}/login" class="button">Iniciar Sesión</a>
+    </div>
+    
+    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `
+      : `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .error-box { background: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 4px; }
+    .reason-box { background: #f9fafb; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">❌ Solicitud de Registro No Aprobada</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <div class="error-box">
+      <p style="margin: 0; color: #991b1b; font-weight: 600;">
+        Lamentablemente, tu solicitud de registro no ha sido aprobada.
+      </p>
+    </div>
+    
+    ${reason ? `
+    <div class="reason-box">
+      <p style="margin: 0; color: #374151;">
+        <strong>Motivo:</strong> ${reason}
+      </p>
+    </div>
+    ` : ''}
+    
+    <p>Si crees que esto es un error, por favor contacta con el administrador del sistema.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `;
+    
+    return await this.sendEmail({
+      to,
+      subject: approved 
+        ? `✅ Cuenta Aprobada - ${appName}` 
+        : `❌ Solicitud de Registro - ${appName}`,
+      html,
+    });
+  }
+
+  async sendPasswordResetCode(to: string, userName: string, code: string): Promise<boolean> {
+    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
+    
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .code-box { background: #fef3c7; border: 2px dashed #f59e0b; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px; }
+    .code { font-size: 32px; font-weight: bold; color: #f59e0b; letter-spacing: 5px; font-family: monospace; }
+    .warning { background: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="color: #111827; margin-bottom: 20px;">🔑 Recuperación de Contraseña</h1>
+    
+    <p>Hola <strong>${userName}</strong>,</p>
+    
+    <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+    
+    <p>Usa el siguiente código para crear una nueva contraseña:</p>
+    
+    <div class="code-box">
+      <div class="code">${code}</div>
+    </div>
+    
+    <div class="warning">
+      <strong>⚠️ Importante:</strong>
+      <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Este código es válido por <strong>1 hora</strong></li>
+        <li>Solo puedes usarlo <strong>una vez</strong></li>
+        <li>No compartas este código con nadie</li>
+      </ul>
+    </div>
+    
+    <p><strong>¿No solicitaste esto?</strong></p>
+    <p>Si no fuiste tú, ignora este mensaje.</p>
+    
+    <div class="footer">
+      <p><strong>${appName}</strong></p>
+      <p>Este es un correo automático, por favor no responder.</p>
+      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+    
+    return await this.sendEmail({
+      to,
+      subject: `🔑 Código de Recuperación - ${appName}`,
+      html,
+    });
   }
 
   async sendNotificationEmail(
@@ -138,7 +331,7 @@ export class EmailService {
   }
 
   private getEmailSubject(type: NotificationType, title: string): string {
-    const prefix = {
+    const prefix: Record<string, string> = {
       [NotificationType.GENERAL]: '📢',
       [NotificationType.CONTEO_MENSUAL_PROXIMO]: '⚠️',
       [NotificationType.CONTEO_MENSUAL_VENCIDO]: '🚨',
@@ -156,7 +349,7 @@ export class EmailService {
     const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
     const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
     
-    const colors = {
+    const colors: Record<string, { primary: string; background: string; border: string }> = {
       [NotificationType.GENERAL]: {
         primary: '#3B82F6',
         background: '#EFF6FF',
@@ -181,131 +374,30 @@ export class EmailService {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #374151;
-      background-color: #F3F4F6;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
-      background-color: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      background-color: ${color.primary};
-      color: white;
-      padding: 30px 40px;
-      text-align: center;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 600;
-    }
-    .content {
-      padding: 40px;
-    }
-    .greeting {
-      font-size: 18px;
-      color: #111827;
-      margin-bottom: 20px;
-    }
-    .notification-box {
-      background-color: ${color.background};
-      border-left: 4px solid ${color.primary};
-      padding: 20px;
-      border-radius: 4px;
-      margin: 20px 0;
-    }
-    .notification-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #111827;
-      margin: 0 0 10px 0;
-    }
-    .notification-message {
-      font-size: 16px;
-      color: #4B5563;
-      margin: 0;
-      white-space: pre-wrap;
-    }
-    .cta-button {
-      display: inline-block;
-      background-color: ${color.primary};
-      color: white;
-      text-decoration: none;
-      padding: 12px 30px;
-      border-radius: 6px;
-      font-weight: 600;
-      margin-top: 20px;
-      transition: background-color 0.3s;
-    }
-    .cta-button:hover {
-      opacity: 0.9;
-    }
-    .footer {
-      background-color: #F9FAFB;
-      padding: 30px 40px;
-      text-align: center;
-      font-size: 14px;
-      color: #6B7280;
-      border-top: 1px solid #E5E7EB;
-    }
-    .footer p {
-      margin: 5px 0;
-    }
-    .footer a {
-      color: ${color.primary};
-      text-decoration: none;
-    }
-    .divider {
-      height: 1px;
-      background-color: #E5E7EB;
-      margin: 30px 0;
-    }
-    .info-text {
-      font-size: 14px;
-      color: #6B7280;
-      margin-top: 20px;
-    }
+    body { font-family: Arial, sans-serif; background-color: #F3F4F6; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .header { background-color: ${color.primary}; color: white; padding: 30px 40px; text-align: center; }
+    .content { padding: 40px; }
+    .notification-box { background-color: ${color.background}; border-left: 4px solid ${color.primary}; padding: 20px; border-radius: 4px; margin: 20px 0; }
+    .footer { background-color: #F9FAFB; padding: 30px 40px; text-align: center; font-size: 14px; color: #6B7280; border-top: 1px solid #E5E7EB; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>${appName}</h1>
+      <h1 style="margin: 0;">${appName}</h1>
     </div>
     <div class="content">
-      <p class="greeting">Hola <strong>${userName}</strong>,</p>
-      <p>Tienes una nueva notificación:</p>
+      <p>Hola <strong>${userName}</strong>,</p>
       <div class="notification-box">
-        <h2 class="notification-title">${title}</h2>
-        <p class="notification-message">${message}</p>
+        <h2 style="margin: 0 0 10px 0; color: #111827;">${title}</h2>
+        <p style="margin: 0; color: #4B5563;">${message}</p>
       </div>
-      <div style="text-align: center;">
-        <a href="${appUrl}/notifications" class="cta-button">Ver en el sistema</a>
-      </div>
-      <p class="info-text">
-        Esta notificación también está disponible en tu panel de notificaciones dentro del sistema.
-      </p>
     </div>
     <div class="footer">
       <p><strong>${appName}</strong></p>
-      <p>Este es un correo automático, por favor no responder.</p>
-      <p>Si tienes alguna pregunta, contacta al <a href="mailto:soporte@sistema.com">equipo de soporte</a>.</p>
-      <div class="divider"></div>
-      <p style="font-size: 12px; color: #9CA3AF;">
-        © ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.
-      </p>
+      <p style="font-size: 12px; color: #9CA3AF;">© ${new Date().getFullYear()} ${appName}</p>
     </div>
   </div>
 </body>
@@ -326,10 +418,8 @@ export class EmailService {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Resumen de Notificaciones</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { font-family: Arial, sans-serif; }
     .container { max-width: 600px; margin: 40px auto; background: white; }
     .header { background: #3B82F6; color: white; padding: 30px; text-align: center; }
     .content { padding: 40px; }
@@ -340,7 +430,7 @@ export class EmailService {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📬 Resumen Diario de Notificaciones</h1>
+      <h1>📬 Resumen Diario</h1>
     </div>
     <div class="content">
       <p>Hola <strong>${userName}</strong>,</p>
@@ -356,13 +446,6 @@ export class EmailService {
       `,
         )
         .join('')}
-      
-      <div style="text-align: center; margin-top: 30px;">
-        <a href="${appUrl}/notifications" 
-           style="background: #3B82F6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          Ver todas las notificaciones
-        </a>
-      </div>
     </div>
     <div class="footer">
       <p>${appName} © ${new Date().getFullYear()}</p>
@@ -389,112 +472,14 @@ export class EmailService {
   async sendTestEmail(to: string): Promise<boolean> {
     return this.sendEmail({
       to,
-      subject: '🧪 Email de Prueba - Sistema de Notificaciones',
+      subject: '🧪 Email de Prueba',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>✅ Email de Prueba</h2>
-          <p>Si recibes este email, significa que el sistema de notificaciones por correo está funcionando correctamente.</p>
+          <p>El sistema de emails está funcionando correctamente.</p>
           <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-ES')}</p>
         </div>
       `,
-    });
-  }
-
-  async sendVerificationCode(to: string, userName: string, code: string): Promise<boolean> {
-    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
-    
-    const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .code-box { background: #f0f7ff; border: 2px dashed #3b82f6; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px; }
-    .code { font-size: 32px; font-weight: bold; color: #3b82f6; letter-spacing: 5px; font-family: monospace; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1 style="color: #111827; margin-bottom: 20px;">🔐 Verifica tu Email</h1>
-    
-    <p>Hola <strong>${userName}</strong>,</p>
-    
-    <p>Se ha creado una cuenta en <strong>${appName}</strong> con este correo electrónico.</p>
-    
-    <p>Para activar tu cuenta y confirmar que este email es correcto, usa el siguiente código de verificación:</p>
-    
-    <div class="code-box">
-      <div class="code">${code}</div>
-    </div>
-    
-    <p><strong>Importante:</strong> Este código es válido por <strong>24 horas</strong>.</p>
-    
-    <p>Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>
-    
-    <div class="footer">
-      <p><strong>${appName}</strong></p>
-      <p>Este es un correo automático, por favor no responder.</p>
-      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
-    
-    return this.sendEmail({
-      to,
-      subject: `🔐 Código de Verificación - ${appName}`,
-      html,
-    });
-  }
-
-  async sendWelcomeEmail(to: string, userName: string): Promise<boolean> {
-    const appName = this.configService.get<string>('APP_NAME', 'Sistema de Gestión');
-    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
-    
-    const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .button { display: inline-block; background: #3b82f6; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1 style="color: #111827; margin-bottom: 20px;">🎉 ¡Bienvenido a ${appName}!</h1>
-    
-    <p>Hola <strong>${userName}</strong>,</p>
-    
-    <p>Tu cuenta ha sido verificada exitosamente. Ya puedes acceder al sistema con tu email y contraseña.</p>
-    
-    <div style="text-align: center;">
-      <a href="${appUrl}/login" class="button">Iniciar Sesión</a>
-    </div>
-    
-    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-    
-    <div class="footer">
-      <p><strong>${appName}</strong></p>
-      <p>Este es un correo automático, por favor no responder.</p>
-      <p style="font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} ${appName}. Todos los derechos reservados.</p>
-    </div>
-  </div>
-</body>
-</html>
-    `;
-    
-    return this.sendEmail({
-      to,
-      subject: `¡Bienvenido a ${appName}!`,
-      html,
     });
   }
 }

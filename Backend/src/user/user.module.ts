@@ -1,3 +1,4 @@
+// src/user/user.module.ts - CORREGIDO ✅
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserController } from './user.controller';

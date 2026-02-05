@@ -15,6 +15,7 @@ export default function VerificarEmailModal({ open, email, userName, onClose }: 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   if (!open) return null;
 
@@ -46,7 +47,11 @@ export default function VerificarEmailModal({ open, email, userName, onClose }: 
       }
 
       toast.success("✓ Email verificado exitosamente");
-      onClose();
+      setVerified(true);
+      
+      setTimeout(() => {
+        onClose();
+      }, 3000);
     } catch {
       toast.error("Error al verificar el código");
       setLoading(false);
@@ -80,6 +85,27 @@ export default function VerificarEmailModal({ open, email, userName, onClose }: 
       setResending(false);
     }
   };
+
+  if (verified) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} className="text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">¡Email Verificado!</h2>
+            <p className="text-gray-600 mb-4">
+              Tu cuenta está pendiente de aprobación por un administrador.
+            </p>
+            <p className="text-sm text-gray-500">
+              Recibirás un email cuando tu cuenta sea aprobada.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

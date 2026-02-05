@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 
-import { User } from './entities/user.entity';
+import { User, ApprovalStatus } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { EmailService } from '../email/email.service';
@@ -54,13 +54,13 @@ export class UserService {
         password: hashedPassword,
         active: false,
         emailVerified: false,
+        approvalStatus: ApprovalStatus.PENDING,
         verificationCode,
         verificationCodeExpiry,
       });
 
       const savedUser = await this.userRepository.save(user);
 
-      // Enviar email de verificación
       await this.emailService.sendVerificationCode(
         savedUser.email,
         savedUser.name,
@@ -78,12 +78,22 @@ export class UserService {
   }
 
   async findAll(active: 'true' | 'false' | 'all' = 'true'): Promise<Omit<User, 'password' | 'verificationCode'>[]> {
-    const where: Record<string, boolean> = {};
+    const where: Record<string, boolean | ApprovalStatus> = {};
 
     if (active === 'true') where.active = true;
     if (active === 'false') where.active = false;
 
     const users = await this.userRepository.find({ where });
+    return users.map((u) => this.removePassword(u));
+  }
+
+  async findPendingApproval(): Promise<Omit<User, 'password' | 'verificationCode'>[]> {
+    const users = await this.userRepository.find({
+      where: {
+        approvalStatus: ApprovalStatus.PENDING,
+      },
+      order: { id: 'DESC' },
+    });
     return users.map((u) => this.removePassword(u));
   }
 
@@ -165,11 +175,70 @@ export class UserService {
     return this.removePassword(refreshedUser);
   }
 
+  async approveUser(userId: number): Promise<Omit<User, 'password' | 'verificationCode'>> {
+    const user = await this.findOneRaw(userId);
+
+    if (user.approvalStatus !== ApprovalStatus.PENDING) {
+      throw new BadRequestException('El usuario ya fue procesado');
+    }
+
+    user.approvalStatus = ApprovalStatus.APPROVED;
+    user.active = true;
+    user.emailVerified = true;
+
+    await this.userRepository.save(user);
+
+    await this.emailService.sendApprovalEmail(user.email, user.name, true);
+
+    const refreshedUser = await this.userRepository.findOne({ where: { id: userId } });
+    
+    if (!refreshedUser) {
+      throw new NotFoundException('Usuario no encontrado después de aprobar');
+    }
+
+    return this.removePassword(refreshedUser);
+  }
+
+  async rejectUser(userId: number, reason?: string): Promise<Omit<User, 'password' | 'verificationCode'>> {
+    const user = await this.findOneRaw(userId);
+
+    if (user.approvalStatus !== ApprovalStatus.PENDING) {
+      throw new BadRequestException('El usuario ya fue procesado');
+    }
+
+    user.approvalStatus = ApprovalStatus.REJECTED;
+    user.active = false;
+
+    await this.userRepository.save(user);
+
+    await this.emailService.sendApprovalEmail(user.email, user.name, false, reason);
+
+    const refreshedUser = await this.userRepository.findOne({ where: { id: userId } });
+    
+    if (!refreshedUser) {
+      throw new NotFoundException('Usuario no encontrado después de rechazar');
+    }
+
+    return this.removePassword(refreshedUser);
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
   }
 
   async updateVerification(user: User): Promise<void> {
     await this.userRepository.save(user);
+  }
+
+  async updatePasswordReset(user: User): Promise<User> {
+    return await this.userRepository.save(user);
+  }
+
+  async countPendingApproval(): Promise<number> {
+    return await this.userRepository.count({
+      where: {
+        approvalStatus: ApprovalStatus.PENDING,
+      },
+    });
   }
 }

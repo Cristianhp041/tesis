@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcryptjs';
 import { DataSource } from 'typeorm';
-import { User } from './entities/user.entity';
+import { User, ApprovalStatus } from './entities/user.entity';
 import { UserRole } from './enums/user-role.enum';
 
 export async function seedAdmin(dataSource: DataSource) {
@@ -23,6 +23,7 @@ export async function seedAdmin(dataSource: DataSource) {
     role: UserRole.ADMIN, 
     active: true,
     emailVerified: true,
+    approvalStatus: ApprovalStatus.APPROVED,
   });
 
   await repo.save(admin);

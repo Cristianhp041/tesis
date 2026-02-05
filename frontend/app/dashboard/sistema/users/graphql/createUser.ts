@@ -9,6 +9,7 @@ export const CREATE_USER = gql`
       role
       active
       emailVerified
+      approvalStatus
     }
   }
 `;

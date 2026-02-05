@@ -1,8 +1,8 @@
 import { gql } from "@apollo/client";
 
-export const GET_USERS = gql`
-  query GetUsers($active: String) {
-    users(active: $active) {
+export const APPROVE_USER = gql`
+  mutation ApproveUser($userId: Int!) {
+    approveUser(userId: $userId) {
       id
       email
       name

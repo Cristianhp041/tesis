@@ -218,18 +218,18 @@ export default function DocumentosEspecificosPage() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => setShowCreateTextModal(true)}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg transition"
-          >
-            <FileText size={20} />
-            Crear Texto
-          </button>
-          <button
             onClick={() => setShowUploadModal(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg transition"
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 shadow-lg transition"
           >
             <Upload size={20} />
             Subir Archivo
+          </button>
+          <button
+            onClick={() => setShowCreateTextModal(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg transition"
+          >
+            <FileText size={20} />
+            Crear Texto
           </button>
         </div>
       </div>

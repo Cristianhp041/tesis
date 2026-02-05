@@ -1,5 +1,5 @@
-// src/notification/notification.module.ts - VERSIÓN ACTUALIZADA
-import { Module } from '@nestjs/common';
+// src/notificacion/notificacion.module.ts - CORREGIDO ✅
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -13,7 +13,8 @@ import { ConteoService } from './conteo.service';
 import { NotificationResolver } from './notificacion.resolver';
 import { NotificationScheduler } from './notificacion.scheduler';
 import { AuthModule } from '../auth/auth.module';
-import { EmailModule } from '../email/email.module'; // 🆕 Importar EmailModule
+import { EmailModule } from '../email/email.module';
+import { EmailTestController } from '../email/email-test.controller'; // 🆕 Mover aquí
 
 @Module({
   imports: [
@@ -24,9 +25,10 @@ import { EmailModule } from '../email/email.module'; // 🆕 Importar EmailModul
       PlanConteoAnual,
     ]),
     ScheduleModule.forRoot(),
-    AuthModule,
-    EmailModule, // 🆕 Agregar EmailModule
+    forwardRef(() =>AuthModule),
+    EmailModule,
   ],
+  controllers: [EmailTestController], // 🆕 Agregar aquí
   providers: [
     NotificationService,
     ConteoService,

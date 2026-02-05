@@ -6,8 +6,18 @@ export enum UserRole {
   USER = 'USER',
 }
 
+export enum ApprovalStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 registerEnumType(UserRole, {
   name: 'UserRole',
+});
+
+registerEnumType(ApprovalStatus, {
+  name: 'ApprovalStatus',
 });
 
 @ObjectType()
@@ -44,9 +54,23 @@ export class User {
   @Column({ default: false })
   emailVerified: boolean;
 
+  @Field(() => ApprovalStatus)
+  @Column({
+    type: 'enum',
+    enum: ApprovalStatus,
+    default: ApprovalStatus.PENDING,
+  })
+  approvalStatus: ApprovalStatus;
+
   @Column({ nullable: true })
   verificationCode: string;
 
   @Column({ nullable: true })
   verificationCodeExpiry: Date;
+
+  @Column({ nullable: true })
+  passwordResetCode: string;
+
+  @Column({ nullable: true })
+  passwordResetExpiry: Date;
 }

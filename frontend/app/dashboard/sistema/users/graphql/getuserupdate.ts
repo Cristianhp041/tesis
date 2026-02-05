@@ -8,7 +8,6 @@ export const GET_USERS = gql`
       name
       role
       active
-      emailVerified
       approvalStatus
     }
   }
